@@ -553,9 +553,19 @@ export default function CreatePage() {
             </div>
             <main ref={threadScrollRef} onScroll={handleThreadScroll} className="creation-scrollbar flex h-full min-h-0 flex-col overflow-y-scroll overscroll-contain">
                 {isEmpty ? <section className="creation-empty-workspace">
-                    <CreationEmptyArt />
+                    <CreationEmptyBanner />
                     <CreationIntro mode={mode} />
                     <div className="creation-empty-composer"><CreationComposer {...composerProps} variant="empty" /></div>
+                    <CreationEmptySuggest
+                        onStartPrompt={(nextMode, nextPrompt) => {
+                            selectMode(nextMode);
+                            setPrompt(nextPrompt);
+                        }}
+                        onOpenLibrary={() => {
+                            selectMode("image");
+                            setLibraryOpen(true);
+                        }}
+                    />
                 </section> : <>
                     <section className="creation-thread-stage"><div className="creation-results">{activeConversation.messages.map((item, index) => <CreationMessageView key={item.id} item={item} modelName={item.model ? modelDisplayName(config, item.model) : ""} onRetryFailure={() => retryFailedMessage(item, index)} onCreateVariant={() => createVariant(item, index)} />)}</div></section>
                     <section className="creation-thread-composer">
@@ -857,42 +867,43 @@ function DurationMenu({ profile, seconds, onChange }: { profile: VideoCapability
     </Popover>;
 }
 
-const creationEmptyArtLibrary = [
-    "black-white-noir.jpg", "chinese-2d.jpg", "clay-stop-motion.jpg", "comic-pop.jpg", "cyberpunk-neon.jpg", "fantasy-3d.jpg",
-    "future-tech.jpg", "ink-narrative.jpg", "nature-healing.jpg", "period-live-action.jpg", "real-life.jpg", "retro-hong-kong.jpg",
-    "space-opera.jpg", "storybook-fantasy.jpg", "surreal-dream.jpg", "suspense-noir.jpg", "three-d-cartoon.jpg", "urban-live-action.jpg",
-].map((file) => `/short-drama-styles/${file}`);
+const creationEmptyBannerFrames = [
+    { src: "/short-drama-styles/cyberpunk-neon.jpg", caption: "光影" },
+    { src: "/short-drama-styles/nature-healing.jpg", caption: "构图" },
+    { src: "/short-drama-styles/chinese-2d.jpg", caption: "风格" },
+];
 
-function CreationEmptyArt() {
-    const frames = useMemo(() => shuffleCreationArt(creationEmptyArtLibrary), []);
-    const [activeIndex, setActiveIndex] = useState(0);
-
-    useEffect(() => {
-        const timer = window.setInterval(() => setActiveIndex((current) => (current + 1) % frames.length), 4200);
-        return () => window.clearInterval(timer);
-    }, [frames.length]);
-
-    const imageAt = (offset: number) => frames[(activeIndex + offset) % frames.length];
-    return <div className="creation-empty-art" aria-label="随机轮播的创作风格参考图">
-        <div className="creation-empty-art-frame is-back"><img key={imageAt(0)} src={imageAt(0)} alt="" /></div>
-        <div className="creation-empty-art-frame is-main"><img key={imageAt(1)} src={imageAt(1)} alt="" /><span>你的下一帧，从这里开始</span></div>
-        <div className="creation-empty-art-frame is-front"><img key={imageAt(2)} src={imageAt(2)} alt="" /></div>
-        <div className="creation-empty-art-caption"><span>{String(activeIndex + 1).padStart(2, "0")}</span><span>镜头 · 氛围 · 故事</span></div>
+function CreationEmptyBanner() {
+    return <div className="creation-empty-art" aria-hidden="true">
+        {creationEmptyBannerFrames.map((frame, index) => <figure key={frame.caption} className={`creation-empty-art-frame ${index === 1 ? "is-main" : index === 0 ? "is-back" : "is-front"}`}>
+            <img src={frame.src} alt="" />
+            <span>{frame.caption}</span>
+        </figure>)}
+        <span className="creation-empty-art-caption"><span>S1 Studio</span>从想法到画面</span>
     </div>;
 }
 
-function shuffleCreationArt(items: string[]) {
-    const shuffled = [...items];
-    for (let index = shuffled.length - 1; index > 0; index -= 1) {
-        const target = Math.floor(Math.random() * (index + 1));
-        [shuffled[index], shuffled[target]] = [shuffled[target], shuffled[index]];
-    }
-    return shuffled;
+function CreationIntro({ mode }: { mode: CreationMode }) {
+    const copy = mode === "video" ? ["让", "想象", "，先在镜头里发生", "S1 Studio · AI 视觉创作"] : mode === "image" ? ["让", "画面", "，从一个想法开始", "S1 Studio · AI 视觉创作"] : ["把", "想法", "，整理成清晰表达", "S1 Studio · 文本 Agent"];
+    return <header className="creation-chat-intro" aria-live="polite"><span className="creation-intro-signal" aria-hidden="true" /><h1>{copy[0]}<span className="creation-intro-emphasis"><span className="is-pink">{copy[1].slice(0, 1)}</span><span className="is-blue">{copy[1].slice(1)}</span></span>{copy[2]}</h1><p>{copy[3]}</p></header>;
 }
 
-function CreationIntro({ mode }: { mode: CreationMode }) {
-    const copy = mode === "video" ? ["让", "想象", "，先在镜头里发生", "影策 · AI 叙事创作"] : mode === "image" ? ["让", "画面", "，从一个想法开始", "影策 · 视觉创作"] : ["把", "故事", "，写在第一句话里", "影策 · 叙事创作"];
-    return <header className="creation-chat-intro" aria-live="polite"><span className="creation-intro-signal" aria-hidden="true" /><h1>{copy[0]}<span className="creation-intro-emphasis"><span className="is-pink">{copy[1].slice(0, 1)}</span><span className="is-blue">{copy[1].slice(1)}</span></span>{copy[2]}</h1><p>{copy[3]}</p></header>;
+const creationEmptySuggestions: Array<{ mode?: CreationMode; icon: typeof ImageIcon; title: string; hint: string; prompt?: string; openLibrary?: boolean; href?: string }> = [
+    { mode: "image", icon: ImageIcon, title: "生成一张图片", hint: "从一句画面描述开始", prompt: "电影感城市夜景，雨后街道倒映霓虹，细节丰富，无文字" },
+    { mode: "image", icon: FolderOpen, title: "从参考图开始", hint: "选择素材并继续创作", openLibrary: true },
+    { mode: "text", icon: FileText, title: "使用文本 Agent", hint: "整理提示词、故事与创意", prompt: "帮我把这个创意整理成专业、可直接生图的提示词：" },
+    { icon: Sparkles, title: "进入无限画布", hint: "连接图片、文本与生成结果", href: "/canvas" },
+];
+
+function CreationEmptySuggest({ onStartPrompt, onOpenLibrary }: { onStartPrompt: (mode: CreationMode, prompt: string) => void; onOpenLibrary: () => void }) {
+    return <div className="creation-empty-suggest">
+        {creationEmptySuggestions.map((item) => {
+            const Icon = item.icon;
+            const content = <><span className={`suggest-icon is-${item.mode || "canvas"}`}><Icon /></span><span className="suggest-copy"><strong>{item.title}</strong><span>{item.hint}</span></span></>;
+            if (item.href) return <Link key={item.title} className="suggest-card" to={item.href}>{content}</Link>;
+            return <button key={item.title} type="button" className="suggest-card" onClick={() => item.openLibrary ? onOpenLibrary() : onStartPrompt(item.mode || "image", item.prompt || "")}>{content}</button>;
+        })}
+    </div>;
 }
 
 function videoResolutionLabel(value: string | number) {
