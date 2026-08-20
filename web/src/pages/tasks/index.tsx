@@ -1,5 +1,5 @@
 import { App, Button, Drawer, Form, Input, Modal, Segmented, Select, Tooltip, Typography } from "antd";
-import { Coins, Eye, FileText, FolderKanban, Image as ImageIcon, Play, Plus, RefreshCw, RotateCcw, Search, Video, X } from "lucide-react";
+import { Eye, FileText, FolderKanban, Image as ImageIcon, Play, Plus, RefreshCw, RotateCcw, Search, Video, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 
@@ -14,7 +14,6 @@ import { syncGenerationTaskToCanvasStore } from "@/lib/canvas/canvas-generation-
 import { useCanvasStore } from "@/stores/canvas/use-canvas-store";
 import { modelDisplayName, resolveModelRequestConfig, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
-import { formatCredits } from "@/constant/credits";
 import { listProjects, type ProjectSummary } from "@/services/api/projects";
 
 type TaskStatusFilter = "all" | "failed" | "active" | "succeeded";
@@ -31,7 +30,6 @@ export default function TasksPage() {
     const isAiConfigReady = useConfigStore((state) => state.isAiConfigReady);
     const projects = useCanvasStore((state) => state.projects);
     const shortDramaEnabled = useUserStore((state) => state.features.shortDramaEnabled);
-    const creditsEnabled = useUserStore((state) => state.features.creditsEnabled);
     const [form] = Form.useForm<CreateTaskInput & { operation: string }>();
     const [tasks, setTasks] = useState<GenerationTask[]>([]);
     const [domainProjects, setDomainProjects] = useState<ProjectSummary[]>([]);
@@ -197,10 +195,10 @@ export default function TasksPage() {
                 setPage(1);
             }
             if (action === "retry") message.success("任务已重新入队");
-            else if (next.providerCancelStatus === "requested") message.info("已请求上游取消，正在确认费用状态");
-            else if (next.providerCancelStatus === "confirmed") message.success("上游已确认取消，积分已退回");
-            else if (next.providerCancelStatus === "uncertain") message.warning("任务已取消，上游费用待核对");
-            else message.success("任务已取消，积分已退回");
+            else if (next.providerCancelStatus === "requested") message.info("已请求上游取消，正在确认状态");
+            else if (next.providerCancelStatus === "confirmed") message.success("上游已确认取消");
+            else if (next.providerCancelStatus === "uncertain") message.warning("任务已取消，上游状态待确认");
+            else message.success("任务已取消");
         } catch (error) {
             message.error(error instanceof Error ? error.message : "操作失败");
         } finally {
@@ -315,7 +313,7 @@ export default function TasksPage() {
 
                 {loading && !tasks.length ? <div className="library-loading-grid" aria-label="正在加载任务">{Array.from({ length: 8 }, (_, index) => <div key={index} className="library-skeleton" />)}</div> : null}
                 {!loading || tasks.length ? (
-                    visibleTasks.length ? <div className="task-record-list">{visibleTasks.map((task) => <TaskListRow key={task.id} task={task} canvasById={canvasById} projectNameById={domainProjectNameById} effectiveConfig={effectiveConfig} creditsEnabled={creditsEnabled} actingId={actingId} onOpen={() => void openTaskDetail(task)} onRetry={() => void runAction(task.id, "retry")} onCancel={() => void runAction(task.id, "cancel")} onPreview={() => task.previewUrl && setMediaPreview({ url: task.previewUrl, kind: task.previewKind === "video" ? "video" : "image", title: task.prompt || formatTaskKind(task) })} />)}</div> : <WorkspaceState compact title={taskEmptyState(statusFilter).title} description={taskEmptyState(statusFilter).description} />
+                    visibleTasks.length ? <div className="task-record-list">{visibleTasks.map((task) => <TaskListRow key={task.id} task={task} canvasById={canvasById} projectNameById={domainProjectNameById} effectiveConfig={effectiveConfig} actingId={actingId} onOpen={() => void openTaskDetail(task)} onRetry={() => void runAction(task.id, "retry")} onCancel={() => void runAction(task.id, "cancel")} onPreview={() => task.previewUrl && setMediaPreview({ url: task.previewUrl, kind: task.previewKind === "video" ? "video" : "image", title: task.prompt || formatTaskKind(task) })} />)}</div> : <WorkspaceState compact title={taskEmptyState(statusFilter).title} description={taskEmptyState(statusFilter).description} />
                 ) : null}
                 <PaginationBar current={page} pageSize={pageSize} total={filteredTasks.length} pageSizeOptions={[20, 50, 100]} onChange={(nextPage, nextPageSize) => { setPage(nextPageSize !== pageSize ? 1 : nextPage); setPageSize(nextPageSize); }} />
             </WorkspacePage>
@@ -412,12 +410,11 @@ function TaskResultMedia({ value, taskType }: { value?: string; taskType: string
     );
 }
 
-function TaskListRow({ task, canvasById, projectNameById, effectiveConfig, creditsEnabled, actingId, onOpen, onRetry, onCancel, onPreview }: {
+function TaskListRow({ task, canvasById, projectNameById, effectiveConfig, actingId, onOpen, onRetry, onCancel, onPreview }: {
     task: GenerationTask;
     canvasById: Map<string, { title: string; projectId?: string }>;
     projectNameById: Map<string, string>;
     effectiveConfig: AiConfig;
-    creditsEnabled: boolean;
     actingId: string;
     onOpen: () => void;
     onRetry: () => void;
@@ -440,7 +437,7 @@ function TaskListRow({ task, canvasById, projectNameById, effectiveConfig, credi
                 {isFailed ? <p className="task-record-error" title={task.error ? generationErrorMessage(task.error) : undefined}>{taskAttentionReason(task)}</p> : null}
             </div>
             <div className="task-record-date"><TaskDate value={task.createdAt} /></div>
-            {creditsEnabled ? <TaskBilling billing={task.billing} /> : <span className="task-record-billing-empty" aria-hidden="true" />}
+            <span className="task-record-billing-empty" aria-hidden="true" />
             <div className="task-record-actions">
                 <Tooltip title="查看详情"><Button type="text" size="small" icon={<Eye className="size-3.5" />} aria-label="查看详情" onClick={onOpen} /></Tooltip>
                 {isFailed ? <Tooltip title="重试任务"><Button type="text" size="small" icon={<RotateCcw className="size-3.5" />} aria-label="重试任务" loading={actingId === task.id} disabled={task.errorCode === CONTENT_MODERATION_ERROR_CODE || isContentModerationError(task.error)} onClick={onRetry} /></Tooltip> : null}
@@ -514,13 +511,13 @@ function taskAttentionReason(task: GenerationTask) {
 
 function providerCancelStatusLabel(task: GenerationTask) {
     if (task.providerCancelStatus === "requested") return "已请求上游取消，正在等待确认";
-    if (task.providerCancelStatus === "confirmed") return "上游已确认取消，积分已退回";
+    if (task.providerCancelStatus === "confirmed") return "上游已确认取消";
     if (task.providerCancelStatus === "uncertain") {
         if (task.billing?.status === "settled") return "上游未能取消，费用已结算";
-        if (task.billing?.status === "refunded") return "上游取消结果未确认，积分已退回";
-        return task.providerCancelError || "上游无法确认取消，费用待核对";
+        if (task.billing?.status === "refunded") return "上游取消结果未确认";
+        return task.providerCancelError || "上游无法确认取消状态";
     }
-    return task.billing?.status === "refunded" ? "任务在调用上游前取消，积分已退回" : "任务已取消，可按原输入重新提交";
+    return task.billing?.status === "refunded" ? "任务在调用上游前已取消" : "任务已取消，可按原输入重新提交";
 }
 
 function taskEmptyState(status: TaskStatusFilter) {
@@ -551,13 +548,6 @@ function TaskDate({ value }: { value?: string }) {
     if (Number.isNaN(date.getTime())) return <span className="text-xs text-foreground/38">-</span>;
     const compact = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()} ${date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
     return <time className="task-record-date-value" dateTime={date.toISOString()} title={date.toLocaleString()}>{compact}</time>;
-}
-
-function TaskBilling({ billing }: { billing?: GenerationTask["billing"] }) {
-    if (!billing) return <span className="task-record-billing-empty text-xs text-foreground/30">-</span>;
-    const amount = formatCredits(billing.amountMicrocredits);
-    const note = billing.status === "settled" ? "已结算" : billing.status === "refunded" ? "已退回" : billing.status === "uncertain" ? "待核对" : "预计";
-    return <div className={`task-record-billing ${billing.status === "uncertain" ? "is-uncertain" : ""}`} title={`积分${note}`}><Coins className="size-4" /><span><strong>{amount}</strong><small>{note}</small></span></div>;
 }
 
 function formatModelName(config: AiConfig, task: GenerationTask) {

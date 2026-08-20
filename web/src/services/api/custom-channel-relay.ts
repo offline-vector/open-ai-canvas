@@ -8,7 +8,7 @@ export type ChannelRequest = {
     credentials: RequestCredentials;
 };
 
-/** 自定义渠道统一经登录态后端中转，避免依赖第三方服务的浏览器 CORS。 */
+/** 自定义渠道统一经同源后端中转，避免依赖第三方服务的浏览器 CORS。 */
 export function channelRequest(config: RelayConfig, upstreamUrl: string, headers: HeadersInit = {}): ChannelRequest {
     const normalizedHeaders = new Headers(headers);
     if (isSystemProxyBaseUrl(config.baseUrl)) {

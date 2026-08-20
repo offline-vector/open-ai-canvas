@@ -178,7 +178,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                 </span>
                 <Button
                     type="text"
-                    className="!inline-flex !h-8 shrink-0 !items-center !gap-1 !rounded-full !px-2.5 !text-[var(--fs-tiny)] !font-medium"
+                    className="canvas-node-generate-button !inline-flex !h-8 shrink-0 !items-center !gap-1 !rounded-full !px-2.5 !text-[var(--fs-tiny)] !font-medium"
                     danger={isRunning}
                     disabled={isSubmitDisabled}
                     style={{
@@ -233,7 +233,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                     {creditsEnabled ? <GenerationCostBadge credits={credits} theme={theme} /> : null}
                     <Button
                         type="text"
-                        className="!inline-flex !h-8 !w-8 shrink-0 !items-center !justify-center !rounded-full !border !p-0 transition hover:!-translate-y-px hover:!brightness-110 motion-reduce:hover:!translate-y-0"
+                        className="canvas-node-generate-button !inline-flex !h-8 !w-8 shrink-0 !items-center !justify-center !rounded-full !border !p-0 transition hover:!-translate-y-px hover:!brightness-110 motion-reduce:hover:!translate-y-0"
                         danger={isRunning}
                         disabled={isSubmitDisabled}
                         style={{

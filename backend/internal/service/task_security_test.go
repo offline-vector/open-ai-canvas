@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestNormalizeTaskInputMakesTypedProviderConfigBillable(t *testing.T) {
+func TestNormalizeTaskInputDoesNotCreateBillingInLocalWorkspaceMode(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	if err != nil {
 		t.Fatal(err)
@@ -38,8 +38,8 @@ func TestNormalizeTaskInputMakesTypedProviderConfigBillable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if order == nil || order.ChannelID != "channel-1" || order.AmountMicrocredits != 100_000 {
-		t.Fatalf("taskBillingOrder() = %#v", order)
+	if order != nil {
+		t.Fatalf("taskBillingOrder() = %#v, want nil", order)
 	}
 }
 

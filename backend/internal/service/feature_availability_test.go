@@ -11,14 +11,14 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestFeatureAvailabilityDefaultsToEnabled(t *testing.T) {
+func TestFeatureAvailabilityDefaultsToCreativeFeaturesOnly(t *testing.T) {
 	svc, _ := newFeatureAvailabilityTestService(t)
 
 	setting, err := svc.FeatureAvailability()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if setting.Configured || !setting.ShortDramaEnabled || !setting.TaskCenterEnabled || !setting.CreditsEnabled {
+	if setting.Configured || !setting.ShortDramaEnabled || !setting.TaskCenterEnabled || setting.CreditsEnabled {
 		t.Fatalf("FeatureAvailability() = %#v", setting)
 	}
 }

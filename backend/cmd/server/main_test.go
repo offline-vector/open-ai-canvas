@@ -28,13 +28,3 @@ func TestAllowedOriginUsesForwardedHost(t *testing.T) {
 		t.Fatal("forwarded public host should be treated as same-origin")
 	}
 }
-
-func TestRedactCanvasSharePath(t *testing.T) {
-	got := redactCanvasSharePath("/api/public/canvas-shares/private-token/resources/resource-1/file")
-	if got != "/api/public/canvas-shares/:token/resources/resource-1/file" {
-		t.Fatalf("unexpected redacted path: %s", got)
-	}
-	if got := redactCanvasSharePath("/api/tasks"); got != "/api/tasks" {
-		t.Fatalf("unrelated path changed: %s", got)
-	}
-}

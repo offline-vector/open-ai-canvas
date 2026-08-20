@@ -42,6 +42,7 @@ export async function runBackendCanvasGenerationTask({
     metadata?: Record<string, unknown>;
     onTaskCreated?: (task: GenerationTask) => void;
 }) {
+    if (mode === "image") assertCanvasImageReferenceLimit(config, referenceImages);
     return runBackendGenerationTask({
         projectId,
         mode,
@@ -55,6 +56,18 @@ export async function runBackendCanvasGenerationTask({
         metadata: { nodeId, ...(mode === "video" && !metadata?.videoEditOperation ? { videoEditOperation: "image_to_video" } : {}), ...metadata },
         onTaskUpdate: onTaskCreated,
     });
+}
+
+/** Keep all connected inputs visible and fail before billing/network work when the model cannot accept them. */
+export function canvasImageReferenceLimitError(config: AiConfig, referenceImages: ReferenceImage[]) {
+    const maxImages = modelCapabilityConfigFor(config, config.model).image?.references.maxImages;
+    if (maxImages === undefined || referenceImages.length <= maxImages) return "";
+    return `当前图片模型最多支持 ${maxImages} 张参考图，当前已连接 ${referenceImages.length} 张。请移除多余连线后重试`;
+}
+
+export function assertCanvasImageReferenceLimit(config: AiConfig, referenceImages: ReferenceImage[]) {
+    const error = canvasImageReferenceLimitError(config, referenceImages);
+    if (error) throw new Error(error);
 }
 
 export { backendProviderConfig };
@@ -95,7 +108,6 @@ function normalizeTaskProgress(progress: number | undefined, status: GenerationT
     if (status === "succeeded") return 100;
     return undefined;
 }
-
 
 export function imageExtension(dataUrl: string) {
     return dataUrl.match(/^data:image[/]([^;]+)/)?.[1] || dataUrl.match(/image[/]([^;]+)/)?.[1] || "png";
@@ -274,14 +286,20 @@ export function getGenerationCount(count: string) {
     return Math.max(1, Math.min(15, Math.floor(Math.abs(Number(count)) || 1)));
 }
 
-
 export function buildGenerationConfig(config: AiConfig, node: CanvasNodeData | undefined, mode: CanvasNodeGenerationMode): AiConfig {
     const defaultModel = mode === "image" ? config.imageModel : mode === "video" ? config.videoModel : mode === "audio" ? config.audioModel : config.textModel;
     const fallbackModel = mode === "image" ? defaultConfig.imageModel : mode === "video" ? defaultConfig.videoModel : mode === "audio" ? defaultConfig.audioModel : defaultConfig.textModel;
     const storedModel = node?.metadata?.model;
     const model = storedModel && configuredModelMatchesCapability(config, storedModel, mode) ? storedModel : defaultModel && configuredModelMatchesCapability(config, defaultModel, mode) ? defaultModel : fallbackModel;
     const imageProfile = mode === "image" ? modelCapabilityConfigFor(config, model).image! : undefined;
-    const normalizedImage = imageProfile ? normalizeImageValue(imageProfile, { quality: node?.metadata?.quality || config.quality || defaultConfig.quality, size: node?.metadata?.size || config.size || defaultConfig.size, transparentBackground: node?.metadata?.transparentBackground || config.transparentBackground, count: String(node?.metadata?.count || config.canvasImageCount || config.count || defaultConfig.count) }) : undefined;
+    const normalizedImage = imageProfile
+        ? normalizeImageValue(imageProfile, {
+              quality: node?.metadata?.quality || config.quality || defaultConfig.quality,
+              size: node?.metadata?.size || config.size || defaultConfig.size,
+              transparentBackground: node?.metadata?.transparentBackground || config.transparentBackground,
+              count: String(node?.metadata?.count || config.canvasImageCount || config.count || defaultConfig.count),
+          })
+        : undefined;
     return {
         ...config,
         model,
@@ -309,7 +327,12 @@ export function resetInterruptedGeneration(nodes: CanvasNodeData[]) {
     const configHeight = NODE_DEFAULT_SIZE[CanvasNodeType.Config].height;
     return nodes.map((node) => {
         const mediaNode = ensureMediaNodeMinimumSize(node);
-        const resizedNode = mediaNode.type === CanvasNodeType.Config && mediaNode.height < configHeight ? { ...mediaNode, height: configHeight } : mediaNode.type === CanvasNodeType.Script && mediaNode.height < NODE_DEFAULT_SIZE[CanvasNodeType.Script].height ? { ...mediaNode, height: NODE_DEFAULT_SIZE[CanvasNodeType.Script].height } : mediaNode;
+        const resizedNode =
+            mediaNode.type === CanvasNodeType.Config && mediaNode.height < configHeight
+                ? { ...mediaNode, height: configHeight }
+                : mediaNode.type === CanvasNodeType.Script && mediaNode.height < NODE_DEFAULT_SIZE[CanvasNodeType.Script].height
+                  ? { ...mediaNode, height: NODE_DEFAULT_SIZE[CanvasNodeType.Script].height }
+                  : mediaNode;
         return resizedNode.metadata?.status === "loading" ? { ...resizedNode, metadata: { ...resizedNode.metadata, errorDetails: "正在从任务中心恢复生成状态..." } } : resizedNode;
     });
 }

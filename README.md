@@ -14,17 +14,16 @@
 
 一个故事也许始于一页小说、一个人物，或一句还没写完的对白。影策从章节中梳理角色与情节，让人物的外观、声音和气质成为可复用的角色资产，再把分镜、图片、视频和音频组织在同一张画布上。从最初的文字到可以被看见、被听见的镜头，创作者始终掌握故事的方向。
 
+本分支采用无账号的浏览器工作区模式：无需登录、注册或 OAuth，不提供积分、钱包、充值和用户运营后台。用户自己的模型地址、API Key 和模型偏好保存在当前浏览器；项目结构、资源索引和长任务由自部署后端通过匿名 HttpOnly Cookie 按浏览器隔离。请只在可信的 HTTPS 部署中使用真实 API Key。
+
 影策是一款面向 AI 影视与短剧创作的开源工作台，集成自由画布、结构化分镜、角色卡、3D 导演台、素材库、异步生成任务和 Agent 协作能力。
 
 > 项目仍在快速开发，数据结构可能直接调整。当前更适合个人、本地或可信环境部署，不建议未经安全配置直接开放公网多人使用。
 
-## 在线体验
+## 上游项目
 
-- 临时演示环境：[https://ddcat.pronhubcn.com](https://ddcat.pronhubcn.com)
-- 测试账号：`test`
-- 测试密码：`test123456`
-- 测试环境：[https://ai.ddcat.pro/login](https://ai.ddcat.pro/login)
 - 代码仓库：[ddcat-ai/open-ai-canvas](https://github.com/ddcat-ai/open-ai-canvas)
+- 本分支保留上游完整创作工作台，并移除账户、积分和用户运营体系。
 
 ## 赞助商
 
@@ -44,22 +43,18 @@
 
 ## 主要功能
 
-- **自由画布**：多项目、节点与连线、框选布局、撤销重做、小地图、导入导出和公开只读分享。
+- **自由画布**：多项目、节点与连线、框选布局、撤销重做、小地图以及导入导出。
 - **AI 生成**：支持文本、图片、视频和音频任务，以及参考图编辑、首尾帧、运镜、视频续写和局部修改。
 - **影视工作流**：结构化分镜脚本、角色卡、批量镜头节点、3D 导演台和控制图回写。
-- **任务与素材**：后端异步队列、任务日志、失败重试、素材库及登录后的后端同步。
+- **任务与素材**：后端异步队列、任务日志、失败重试和素材库；画布与 API 偏好保存在当前浏览器。
 - **Agent 能力**：网页画布助手、本地 Canvas Agent、Codex App 插件和技能库。
-- **管理与安全**：用户与系统渠道、用量分析、私有 OSS、资源归属校验和敏感配置加密。
+- **存储与安全**：本地工作区、私有 OSS、资源归属校验和敏感配置加密。
 
 ## 界面预览
 
 <table>
   <tr>
-    <td width="50%" valign="top">
-      <img src="assets/login.png" alt="登录与注册" width="100%">
-      <br><sub><b>登录与注册</b></sub>
-    </td>
-    <td width="50%" valign="top">
+    <td colspan="2" valign="top">
       <img src="assets/create.png" alt="AI 创作工作台" width="100%">
       <br><sub><b>AI 创作工作台</b></sub>
     </td>
@@ -96,7 +91,7 @@ curl -fsSL https://raw.githubusercontent.com/ddcat-ai/open-ai-canvas/main/script
 
 脚本会自动安装 Docker 和 Docker Compose，把项目源码安装到 `/opt/open-ai-canvas`，生成随机数据库密码，在服务器本地构建网页与后端镜像，并启动网页、后端、PostgreSQL 和 Redis。该流程不依赖 GitHub Container Registry（GHCR）的匿名拉取权限；数据库和上传文件使用 Docker 数据卷持久保存，重新启动容器不会丢失。
 
-完成后打开 `http://服务器IP:3000`。第一个注册的账号会自动成为管理员；登录后在系统设置中配置模型渠道即可开始使用。公开注册默认关闭，但不影响第一个管理员注册。
+完成后打开 `http://服务器IP:3000`。页面无需登录即可进入；在设置页配置 API 地址、Key 和模型后即可使用。API Key 只长期保存在当前浏览器，公网使用前必须绑定域名并启用 HTTPS。
 
 再次执行同一条命令即可拉取新代码并更新。常用排查命令：
 
@@ -122,7 +117,7 @@ curl -fsSL https://raw.githubusercontent.com/ddcat-ai/open-ai-canvas/main/script
 
 ## 生产环境文本 SSE
 
-文本任务事件流是登录态接口 `GET /api/tasks/:id/text-events`。它只发送当前用户有权限访问的文本任务增量，响应类型为 `text/event-stream`；事件 `delta` 的 `id` 是单调递增的文本序号，`terminal` 表示任务已经成功、失败或取消。生产反向代理必须对这一条路径关闭响应缓冲和缓存，并允许长时间读取；不要把这些设置复制到所有 `/api/` 请求上。
+文本任务事件流是工作区接口 `GET /api/tasks/:id/text-events`。它只发送当前匿名浏览器工作区有权访问的文本任务增量，响应类型为 `text/event-stream`；事件 `delta` 的 `id` 是单调递增的文本序号，`terminal` 表示任务已经成功、失败或取消。生产反向代理必须对这一条路径关闭响应缓冲和缓存，并允许长时间读取；不要把这些设置复制到所有 `/api/` 请求上。
 
 ### Nginx
 
@@ -167,7 +162,7 @@ canvas.example.com {
 }
 ```
 
-HTTPS 不是可选项：事件流使用登录 Cookie，用户配置的模型凭据也会参与请求；公网浏览器到反向代理的链路必须使用 HTTPS，并保留 `Host`、`X-Forwarded-For` 和 `X-Forwarded-Proto`。反向代理到网页容器可以使用隔离的 Compose 内网 HTTP。不要通过放宽 CORS、关闭鉴权或把 `Last-Event-ID` 放进 URL 来解决断线问题。
+HTTPS 不是可选项：事件流使用匿名工作区 Cookie，用户配置的模型凭据也会参与请求；公网浏览器到反向代理的链路必须使用 HTTPS，并保留 `Host`、`X-Forwarded-For` 和 `X-Forwarded-Proto`。反向代理到网页容器可以使用隔离的 Compose 内网 HTTP。不要通过放宽 CORS、取消资源归属校验或把工作区标识放进 URL 来解决断线问题。
 
 ### Docker 与健康检查
 
@@ -184,13 +179,13 @@ curl -fsS https://canvas.example.com/api/health
 
 客户端重连时可以发送 `Last-Event-ID: <最后收到的序号>`，也可以使用 `?after=<序号>`；查询参数优先。服务端只返回 `sequence > after` 的 `delta`，因此同一段文本不会因为重连重复拼接。游标来自 SSE `id`，不是任务 ID。成功任务的增量保留 24 小时，失败或取消任务保留 7 天；超出保留期时应读取任务详情中的最终正文或失败草稿。
 
-在已登录浏览器中复制 `open_ai_canvas_session` Cookie 后，可用 `curl -N` 检查首字节和增量是否在任务运行期间到达：
+在已打开创作台的浏览器中，通过开发者工具复制匿名 `open_ai_canvas_workspace` Cookie 后，可用 `curl -N` 检查首字节和增量是否在任务运行期间到达。该 Cookie 只用于工作区归属，不是登录凭据，但仍不应公开：
 
 ```bash
 curl -N --http1.1 \
   -H 'Accept: text/event-stream' \
   -H 'Last-Event-ID: 0' \
-  -b 'open_ai_canvas_session=<登录 Cookie>' \
+  -b 'open_ai_canvas_workspace=<匿名工作区 Cookie>' \
   'https://canvas.example.com/api/tasks/<task-id>/text-events'
 ```
 
@@ -228,9 +223,9 @@ bun install
 bun run dev
 ```
 
-打开 `http://localhost:3000`，注册首个管理员账号，再在系统设置中配置渠道和模型。
+打开 `http://localhost:3000`，无需登录即可进入。在设置页配置 API 地址、Key 和模型后开始使用。
 
-资源配额、Worker/渠道/账号任务并发、业务频控、任务超时和渠道中转策略可在“系统配置 → 资源与策略”中统一热更新，支持重置和自用模式；系统渠道可选择跟随全局值，或单独设置 `1-999` 的最大并发数。未保存后台配置时 Worker 和全局渠道并发分别回退到 `CANVAS_WORKER_CONCURRENCY` 和 `CANVAS_CHANNEL_CONCURRENCY`，两者默认均为 `3`。渠道槽位暂满时任务会等待，不会直接标记失败。
+资源配额、Worker/渠道任务并发、业务频控、任务超时和渠道中转限制继续由后端执行。无账户分支不提供运营后台，部署者通过环境变量和受控配置文件管理这些限制；Worker 和全局渠道并发默认均为 `3`，渠道槽位暂满时任务会等待，不会直接标记失败。
 
 Docker 热更新开发：
 
@@ -252,15 +247,15 @@ docker compose -f docker-compose.local.yml up -d --build
 
 ## 数据说明
 
-- 用户自定义 AI API Key 保存在浏览器本地；登录态拉取模型目录时会临时提交给自部署后端但不会保存，创建异步任务时会加密入队；仅应使用可信部署，生产环境必须启用 HTTPS。
-- 画布和素材登录后同步到后端，本地 `localForage` 继续承担缓存和降级存储。
+- 用户自定义 AI API Key 保存在浏览器本地；拉取模型目录时会临时提交给自部署后端但不会保存，创建异步任务时会加密入队；仅应使用可信部署，生产环境必须启用 HTTPS。
+- 画布和素材以浏览器 `localForage` 为主存储；需要后端资源或长任务时，通过匿名工作区归属访问对应数据。
 - 媒体资源在启用 OSS 时保存到私有 OSS，否则保存到后端数据目录；删除业务记录不会自动清理 OSS 对象。
-- 用户主动上传、Agent 会话附件和 AI 生成资源的单文件上限、账号容量及 UTC 日上传总量由后台“资源与策略”统一维护，默认分别为 50MB、32MB、64MB、2GB 和 200MB；管理员可按可信部署需要调整，单文件业务上限最高 999MB，Nginx 请求体硬上限为 1024MB。
+- 主动上传、Agent 会话附件和 AI 生成资源仍受后端单文件、工作区容量和 UTC 日上传限制保护；部署者可按可信环境调整，Nginx 请求体硬上限为 1024MB。
 
 ## 公网部署安全
 
-- 服务首次启动后应先在受控网络完成首个管理员注册，再开放公网入口。
-- 生产环境保持 `CANVAS_REGISTRATION_ENABLED=false`，确需开放注册时应同时配置系统渠道用量预算。
+- 首次部署应先在受控网络验证匿名工作区隔离、模型渠道和任务限制，再开放公网入口。
+- 生产环境必须保留任务并发、上传容量、速率限制和上游白名单，删除账户体系不代表可以取消服务端资源保护。
 - `CANVAS_CORS_ORIGINS` 必须设置为实际前端 Origin 列表，不要在公网使用 `*`。
 - 后端和前端必须通过 HTTPS 提供服务，并限制数据目录、数据库、备份和 `.settings-key` 的访问权限。
 

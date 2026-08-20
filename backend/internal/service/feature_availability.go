@@ -33,8 +33,7 @@ type PublicFeatureAvailability struct {
 }
 
 func defaultFeatureAvailability() FeatureAvailability {
-	// 缺少配置代表尚未由运维接管，默认保持现有功能全部开放。
-	return FeatureAvailability{ShortDramaEnabled: true, TaskCenterEnabled: true, CreditsEnabled: true}
+	return FeatureAvailability{ShortDramaEnabled: true, TaskCenterEnabled: true, CreditsEnabled: false}
 }
 
 func (s *Service) FeatureAvailability() (*PublicFeatureAvailability, error) {
@@ -42,6 +41,7 @@ func (s *Service) FeatureAvailability() (*PublicFeatureAvailability, error) {
 	if err != nil {
 		return nil, err
 	}
+	value.CreditsEnabled = false
 	return publicFeatureAvailability(setting, value), nil
 }
 
@@ -88,7 +88,7 @@ func (s *Service) FeatureEnabled(feature string) (bool, error) {
 	case FeatureTaskCenter:
 		return value.TaskCenterEnabled, nil
 	case FeatureCredits:
-		return value.CreditsEnabled, nil
+		return false, nil
 	default:
 		return false, errors.New("未知功能开放配置")
 	}

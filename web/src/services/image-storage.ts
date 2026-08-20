@@ -3,7 +3,7 @@ import localforage from "localforage";
 import { nanoid } from "nanoid";
 import { readImageMeta } from "@/lib/image-utils";
 import { getActiveUserScope } from "@/lib/user-scope";
-import { importResourceFromUrl, isResourceUrl, resourceFileUrl, resourceIdFromStorageKey, resourceStorageKey, resolveResourceUrl, uploadResourceFile } from "@/services/api/resources";
+import { importResourceFromUrl, isResourceUrl, resourceFileUrl, resourceIdFromStorageKey, resourceStorageKey, resolveResourceUrl } from "@/services/api/resources";
 import { cacheResourceObjectUrl, getCachedResourceBlob, getCachedResourceObjectUrl, primeResourceBlobCache } from "@/services/resource-blob-cache";
 
 export type UploadedImage = {
@@ -19,6 +19,8 @@ const store = localforage.createInstance({ name: "infinite-canvas", storeName: "
 const objectUrls = new Map<string, string>();
 
 export async function uploadImage(input: string | Blob): Promise<UploadedImage> {
+    // 本地文件和浏览器内生成的 Blob 以 IndexedDB 为正式存储；只有外部 URL
+    // 在浏览器无法直接读取时才交给后端导入。生成任务会在提交时显式上传参考图。
     if (typeof input === "string" && shouldImportRemoteImage(input)) {
         try {
             const resource = await importResourceFromUrl(input, "image");
@@ -37,23 +39,13 @@ export async function uploadImage(input: string | Blob): Promise<UploadedImage> 
     const blob = typeof input === "string" ? await (await fetch(input)).blob() : input;
     const previewUrl = URL.createObjectURL(blob);
     const meta = await readImageMeta(previewUrl);
-    try {
-        const resource = await uploadResourceFile(blob, "image", { width: meta.width, height: meta.height, fileName: input instanceof File ? input.name : undefined });
-        await primeResourceBlobCache(resourceStorageKey(resource.id), blob).catch(() => "");
-        URL.revokeObjectURL(previewUrl);
-        return {
-            url: resource.publicUrl || resourceFileUrl(resource.id),
-            storageKey: resourceStorageKey(resource.id),
-            width: resource.width || meta.width,
-            height: resource.height || meta.height,
-            bytes: resource.size || blob.size,
-            mimeType: resource.mimeType || blob.type || meta.mimeType,
-        };
-    } catch {
-        // OSS is optional during local/self-hosted setup. Keep the existing local fallback.
-    }
     const storageKey = `image:${getActiveUserScope()}:${nanoid()}`;
-    await store.setItem(storageKey, blob);
+    try {
+        await store.setItem(storageKey, blob);
+    } catch (error) {
+        URL.revokeObjectURL(previewUrl);
+        throw new Error(error instanceof Error ? `图片保存到浏览器失败：${error.message}` : "图片保存到浏览器失败，请检查浏览器存储空间");
+    }
     const url = previewUrl;
     objectUrls.set(storageKey, url);
     return { url, storageKey, width: meta.width, height: meta.height, bytes: blob.size, mimeType: blob.type || meta.mimeType };

@@ -119,7 +119,7 @@ export function useCanvasUpload({
     const createImageFileNode = useCallback(async (file: File, position: Position) => {
         const progress = startUploadStatus("上传图片", "读取图片文件", domainProjectId ? 4 : 3);
         try {
-            progress.update("上传到服务器并同步资源", 2);
+            progress.update("保存到浏览器并同步素材", 2);
             const image = await uploadImage(file);
             progress.update("更新画布节点", 3);
             const size = fitNodeSize(image.width, image.height);
@@ -453,7 +453,7 @@ export function useCanvasUpload({
         }
         const progress = startUploadStatus("替换图片", "读取图片文件");
         try {
-            progress.update("上传到服务器并同步资源", 2);
+            progress.update("保存到浏览器并同步素材", 2);
             const image = await uploadImage(file);
             progress.update("更新画布节点", 3);
             const node = {

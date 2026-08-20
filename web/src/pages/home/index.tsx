@@ -25,10 +25,9 @@ export default function IndexPage() {
     const navigate = useNavigate();
     const canvasHydrated = useCanvasStore((state) => state.hydrated);
     const canvasProjects = useCanvasStore((state) => state.projects);
-    const user = useUserStore((state) => state.user);
     const userHydrated = useUserStore((state) => state.hydrated);
     const shortDramaEnabled = useUserStore((state) => state.features.shortDramaEnabled);
-    const domainProjectsQuery = useQuery({ queryKey: ["projects"], queryFn: listProjects, enabled: Boolean(user && shortDramaEnabled) });
+    const domainProjectsQuery = useQuery({ queryKey: ["projects"], queryFn: listProjects, enabled: shortDramaEnabled });
     const domainProjects = useMemo(
         () => [...(domainProjectsQuery.data?.projects || [])].sort((left, right) => right.project.updatedAt.localeCompare(left.project.updatedAt)),
         [domainProjectsQuery.data],
@@ -37,7 +36,7 @@ export default function IndexPage() {
     const activeProjectQuery = useQuery({
         queryKey: ["project", activeProject?.project.id],
         queryFn: () => getProject(activeProject!.project.id),
-        enabled: Boolean(user && shortDramaEnabled && activeProject?.project.id),
+        enabled: Boolean(shortDramaEnabled && activeProject?.project.id),
     });
     const recentIndependentCanvases = useMemo(
         () => canvasProjects.filter((project) => !project.projectId).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)).slice(0, 3),
@@ -46,23 +45,19 @@ export default function IndexPage() {
 
     const createIndependentCanvas = () => {
         if (!canvasHydrated) return;
-        if (!user) {
-            navigate(`/login?next=${encodeURIComponent("/canvas?mode=new")}`);
-            return;
-        }
         void createCanvasProjectWithRemoteSync(`自由画布 ${canvasProjects.length + 1}`).then(({ id, syncError }) => {
-            if (syncError) message.warning(syncError instanceof Error ? `画布已在本地创建，云端同步失败：${syncError.message}` : "画布已在本地创建，云端同步失败");
+            if (syncError) message.warning(syncError instanceof Error ? `画布已在本地创建，后端备份失败：${syncError.message}` : "画布已在本地创建，后端备份失败");
             navigate(`/canvas/${id}`);
         });
     };
 
-    const loadingUserWorkspace = !userHydrated || (Boolean(user && shortDramaEnabled) && domainProjectsQuery.isLoading);
+    const loadingUserWorkspace = !userHydrated || (shortDramaEnabled && domainProjectsQuery.isLoading);
     return (
         <main className="app-user-content app-workspace-canvas app-workspace-scroll h-full overflow-y-auto text-foreground">
             <div className="app-home-workbench mx-auto w-full max-w-[1440px] px-4 pb-12 pt-5 sm:px-6 lg:px-8">
                 {loadingUserWorkspace ? (
                     <WorkspaceLoadingState className="mt-3 max-w-[980px]" label="正在恢复工作台" detail="读取项目、章节和最近画布" rows={5} />
-                ) : user && shortDramaEnabled && domainProjectsQuery.isError ? (
+                ) : shortDramaEnabled && domainProjectsQuery.isError ? (
                     <WorkspaceErrorState title="项目工作台加载失败" description={domainProjectsQuery.error instanceof Error ? domainProjectsQuery.error.message : "暂时无法读取项目列表。"} onRetry={() => void domainProjectsQuery.refetch()} />
                 ) : shortDramaEnabled && activeProject ? (
                     <ReturningWorkspace
@@ -76,7 +71,6 @@ export default function IndexPage() {
                     />
                 ) : (
                     <FirstProjectWorkspace
-                        authenticated={Boolean(user)}
                         canvasHydrated={canvasHydrated}
                         recentIndependentCanvases={recentIndependentCanvases}
                         onCreateIndependentCanvas={createIndependentCanvas}
@@ -197,14 +191,13 @@ function ReturningWorkspace({ summary, detail, detailLoading, detailError, recen
     );
 }
 
-function FirstProjectWorkspace({ authenticated, canvasHydrated, recentIndependentCanvases, onCreateIndependentCanvas, shortDramaEnabled }: {
-    authenticated: boolean;
+function FirstProjectWorkspace({ canvasHydrated, recentIndependentCanvases, onCreateIndependentCanvas, shortDramaEnabled }: {
     canvasHydrated: boolean;
     recentIndependentCanvases: ReturnType<typeof useCanvasStore.getState>["projects"];
     onCreateIndependentCanvas: () => void;
     shortDramaEnabled: boolean;
 }) {
-    const projectHref = authenticated ? "/projects?create=1" : `/login?next=${encodeURIComponent("/projects?create=1")}`;
+    const projectHref = "/projects?create=1";
     return (
         <>
             <section className="app-first-project-intro border-b border-border/80 pb-8 pt-3 sm:pb-10 sm:pt-6">

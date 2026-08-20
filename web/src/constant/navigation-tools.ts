@@ -1,4 +1,4 @@
-import { BookOpenCheck, Coins, FolderKanban, Images, ListChecks, Maximize2, MessageSquarePlus, Settings2 } from "lucide-react";
+import { BookOpenCheck, FolderKanban, Images, ListChecks, Maximize2, MessageSquarePlus, Settings2 } from "lucide-react";
 
 export const navigationTools = [
     {
@@ -35,12 +35,6 @@ export const navigationTools = [
         slug: "skills",
         label: "技能库",
         icon: BookOpenCheck,
-        section: "工作台管理",
-    },
-    {
-        slug: "wallet",
-        label: "积分中心",
-        icon: Coins,
         section: "工作台管理",
     },
     {

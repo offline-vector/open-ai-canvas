@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { App, Button, Drawer, InputNumber, Segmented, Tag } from "antd";
+import { App, Button, Drawer, Tag } from "antd";
 import { ChevronRight, FlaskConical, Settings2 } from "lucide-react";
 
 import { testChannelModelConnection } from "@/lib/model-connection-test";
@@ -45,7 +45,6 @@ export function ChannelModelSettings({ channel, onChange }: { channel: ModelChan
     const activeModelCost = activeModel ? channel.modelCosts?.find((item) => item.model === activeModel) : undefined;
     const activeProtocol = activeModel ? activeModelCost?.protocol || defaultProtocolForModel(channel, activeModel) : undefined;
     const activeCapability = activeModel ? activeModelCost?.capability || modelProtocolCapability(activeProtocol) || "text" : undefined;
-    const activeBillingMode = activeModelCost?.billingMode || "fixed_request";
 
     return (
         <div className="mt-3 border-t border-border/70 pt-3">
@@ -124,7 +123,7 @@ export function ChannelModelSettings({ channel, onChange }: { channel: ModelChan
                                     updateCost(activeModel, {
                                         protocol: nextProtocol,
                                         capability: nextCapability,
-                                        billingMode: nextCapability === "video" ? activeBillingMode : "fixed_request",
+                                        billingMode: "fixed_request",
                                         capabilityConfig: nextCapability === "image" || nextCapability === "video" ? defaultModelCapabilityConfig(nextProtocol, activeModel) : undefined,
                                     });
                                 }}
@@ -138,35 +137,6 @@ export function ChannelModelSettings({ channel, onChange }: { channel: ModelChan
                                 onChange={(nextProtocol) => updateCost(activeModel, { protocol: nextProtocol, capabilityConfig: activeCapability === "image" || activeCapability === "video" ? defaultModelCapabilityConfig(nextProtocol, activeModel) : undefined })}
                             />
                         </section>
-                        {activeCapability === "video" ? (
-                            <div className="space-y-2">
-                                <div className="text-xs font-medium">计费方式</div>
-                                <div className="grid gap-2 lg:grid-cols-[176px_1fr]">
-                                    <Segmented
-                                        size="small"
-                                        block
-                                        value={activeBillingMode}
-                                        options={[
-                                            { label: "按次", value: "fixed_request" },
-                                            { label: "按秒", value: "per_second" },
-                                        ]}
-                                        onChange={(value) => updateCost(activeModel, { billingMode: value as ModelCost["billingMode"] })}
-                                    />
-                                    <InputNumber
-                                        size="small"
-                                        min={0}
-                                        max={1_000_000}
-                                        precision={6}
-                                        step={0.1}
-                                        className="w-full"
-                                        placeholder={activeBillingMode === "per_second" ? "每秒价格" : "每次价格"}
-                                        addonAfter={`积分/${activeBillingMode === "per_second" ? "秒" : "次"}`}
-                                        value={activeModelCost ? activeModelCost.unitPriceMicrocredits / 1_000_000 : null}
-                                        onChange={(value) => updateCost(activeModel, { unitPriceMicrocredits: Math.round(Number(value || 0) * 1_000_000) })}
-                                    />
-                                </div>
-                            </div>
-                        ) : null}
                         {activeCapability === "image" || activeCapability === "video" ? (
                             <ModelCapabilityEditor capability={activeCapability} model={activeModel} value={activeModelCost?.capabilityConfig || defaultModelCapabilityConfig(activeProtocol, activeModel)} protocol={activeProtocol} onChange={(capabilityConfig) => updateCost(activeModel, { capabilityConfig })} />
                         ) : null}

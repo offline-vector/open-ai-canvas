@@ -812,6 +812,65 @@ func (r *Repository) ResourceForUser(userID string, id string) (*model.Resource,
 	return &resource, nil
 }
 
+// ResourceReferenceCount checks persisted JSON and relational references before a resource is physically removed.
+// excludeAssetID is the asset currently being deleted; its own payload/version references are not external usage.
+func (r *Repository) ResourceReferenceCount(userID string, resourceID string, excludeAssetID string) (int64, error) {
+	needle := "%resource:" + resourceID + "%"
+	var total int64
+	queries := []struct {
+		table  string
+		column string
+	}{
+		{"canvas_projects", "payload_json"},
+		{"sessions", "canvas_snapshot_json"},
+		{"sessions", "canvas_ops_json"},
+		{"messages", "content"},
+		{"messages", "payload"},
+		{"tasks", "input_json"},
+		{"tasks", "result_json"},
+		{"results", "url"},
+		{"results", "payload"},
+		{"style_profiles", "profile_json"},
+		{"style_profiles", "cover_url"},
+		{"assets", "payload_json"},
+	}
+	for _, query := range queries {
+		dbQuery := r.db.Table(query.table).Where("user_id = ? AND "+query.column+" LIKE ?", userID, needle)
+		if query.table == "assets" && excludeAssetID != "" {
+			dbQuery = dbQuery.Where("id <> ?", excludeAssetID)
+		}
+		var count int64
+		if err := dbQuery.Count(&count).Error; err != nil {
+			return 0, err
+		}
+		total += count
+	}
+	var versionCount int64
+	if err := r.db.Table("asset_versions").Joins("JOIN assets ON assets.id = asset_versions.asset_id").Where("assets.user_id = ? AND asset_versions.definition_json LIKE ? AND assets.id <> ?", userID, needle, excludeAssetID).Count(&versionCount).Error; err != nil {
+		return 0, err
+	}
+	total += versionCount
+	var directCount int64
+	if err := r.db.Table("asset_representations").Joins("JOIN asset_versions ON asset_versions.id = asset_representations.asset_version_id").Joins("JOIN assets ON assets.id = asset_versions.asset_id").Where("assets.user_id = ? AND asset_representations.resource_id = ?", userID, resourceID).Where("assets.id <> ?", excludeAssetID).Count(&directCount).Error; err != nil {
+		return 0, err
+	}
+	total += directCount
+	if err := r.db.Model(&model.VoiceProfile{}).Where("user_id = ? AND sample_resource_id = ?", userID, resourceID).Count(&directCount).Error; err != nil {
+		return 0, err
+	}
+	return total + directCount, nil
+}
+
+func (r *Repository) ResourceObjectReferenceCount(resource *model.Resource) (int64, error) {
+	var count int64
+	err := r.db.Model(&model.Resource{}).Where("user_id = ? AND provider = ? AND bucket = ? AND object_key = ?", resource.UserID, resource.Provider, resource.Bucket, resource.ObjectKey).Count(&count).Error
+	return count, err
+}
+
+func (r *Repository) DeleteResource(userID string, id string) error {
+	return r.db.Delete(&model.Resource{}, "id = ? AND user_id = ?", id, userID).Error
+}
+
 func (r *Repository) Resources(userID string, limit int) ([]model.Resource, error) {
 	var resources []model.Resource
 	if limit <= 0 || limit > 500 {

@@ -14,19 +14,6 @@ import (
 )
 
 func RegisterTaskRoutes(r *gin.RouterGroup, svc *service.Service) {
-	r.GET("/admin/text-replay-stats", func(c *gin.Context) {
-		user, err := currentUser(c, svc)
-		if err != nil {
-			failService(c, err)
-			return
-		}
-		stats, err := svc.AdminTextReplayStats(user)
-		if err != nil {
-			failService(c, err)
-			return
-		}
-		ok(c, stats)
-	})
 	r.POST("/tasks", func(c *gin.Context) {
 		user, err := currentUser(c, svc)
 		if err != nil {

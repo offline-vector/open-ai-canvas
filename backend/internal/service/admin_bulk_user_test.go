@@ -42,8 +42,8 @@ func TestCreateAdminUserCreatesActiveUserWithPasswordAndAudit(t *testing.T) {
 	if err := db.First(&account, "user_id = ?", created.ID).Error; err != nil {
 		t.Fatal(err)
 	}
-	if account.AvailableMicrocredits <= 0 {
-		t.Fatalf("available credits = %d, want positive signup bonus", account.AvailableMicrocredits)
+	if account.AvailableMicrocredits != 0 {
+		t.Fatalf("available credits = %d, want zero in local workspace mode", account.AvailableMicrocredits)
 	}
 	var audit model.AdminAuditEvent
 	if err := db.Where("action = ? AND target_id = ?", "user.create", created.ID).First(&audit).Error; err != nil {

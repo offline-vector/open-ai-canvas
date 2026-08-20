@@ -11,8 +11,8 @@ import { saveAs } from "file-saver";
 import { useCopyText } from "@/hooks/use-copy-text";
 import { resourceStorageLabel, resourceStorageLocation, resourceStorageTitle } from "@/lib/canvas/resource-storage-status";
 import { formatBytes, readFileAsDataUrl } from "@/lib/image-utils";
-import { uploadImage } from "@/services/image-storage";
-import { uploadMediaFile } from "@/services/file-storage";
+import { getImageBlob, uploadImage } from "@/services/image-storage";
+import { getMediaBlob, uploadMediaFile } from "@/services/file-storage";
 import { useAssetStore, type Asset, type AssetCategory, type AssetKind, type ImageAsset } from "@/stores/use-asset-store";
 import { exportAssets, readAssetPackage } from "./asset-transfer";
 import { deleteAssetWithRemoteSync } from "@/services/user-data-sync";
@@ -195,11 +195,20 @@ export default function AssetsPage() {
         copyText(asset.data.content, "文本已复制");
     };
 
-    const downloadImage = (asset: LibraryAsset) => {
+    const downloadImage = async (asset: LibraryAsset) => {
         if (asset.kind !== "image" && asset.kind !== "video" && asset.kind !== "audio" && asset.kind !== "model") return;
-        const url = asset.kind === "image" ? asset.data.dataUrl : asset.data.url;
-        const extension = asset.kind === "model" ? asset.data.fileName.split(".").pop() || "glb" : asset.data.mimeType.split("/")[1] || "png";
-        saveAs(url, `${asset.title || "asset"}.${extension}`);
+        try {
+            const blob = asset.data.storageKey
+                ? asset.kind === "image"
+                    ? await getImageBlob(asset.data.storageKey)
+                    : await getMediaBlob(asset.data.storageKey)
+                : null;
+            const url = asset.kind === "image" ? asset.data.dataUrl : asset.data.url;
+            const extension = asset.kind === "model" ? asset.data.fileName.split(".").pop() || "glb" : asset.data.mimeType.split("/")[1] || "png";
+            saveAs(blob || url, `${asset.title || "asset"}.${extension}`);
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "素材下载失败");
+        }
     };
 
     const exportAllAssets = async () => {

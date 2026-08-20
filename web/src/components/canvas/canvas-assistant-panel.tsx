@@ -16,10 +16,9 @@ import { imageReferenceLabel } from "@/lib/image-reference-prompt";
 import { navigateToSettings } from "@/lib/settings-navigation";
 import { cinematicAgentSessionOpsJson, createCinematicAgentSession, isAgentSessionPollingAbort, resumeCinematicAgentSession } from "@/lib/canvas/canvas-agent-session";
 import { summarizeCanvasContext } from "@/lib/canvas/canvas-context-summary";
-import { AgentChatComposer, AgentChatMessage, AgentPanelTabs, AgentWorkingMessage, type CanvasAgentChatMessage, type CanvasAgentMode } from "./canvas-agent-chat-ui";
+import { AgentChatComposer, AgentChatMessage, AgentPanelTabs, AgentWorkingMessage, type CanvasAgentChatMessage } from "./canvas-agent-chat-ui";
 import { VoiceRecordingButton } from "@/components/conversation/voice-recording-button";
 import { AgentChatEmptyState, AgentPanelChrome } from "./canvas-agent-panel-chrome";
-import { CanvasLocalAgentPanel } from "./canvas-local-agent-panel";
 import { NODE_DEFAULT_SIZE } from "@/constant/canvas";
 import { CanvasNodeType, type CanvasAssistantMessage, type CanvasAssistantPendingBackendSession, type CanvasAssistantReference, type CanvasAssistantSession, type CanvasNodeData } from "@/types/canvas";
 import { useCanvasAgentStore } from "@/stores/canvas/use-canvas-agent-store";
@@ -140,9 +139,6 @@ type CanvasAssistantPanelProps = {
     undoOpsCount: number;
     onUndoOps: () => CanvasAgentSnapshot | null;
     onPasteImage: (file: File) => void;
-    agentMode: CanvasAgentMode;
-    onAgentModeChange: (mode: CanvasAgentMode) => void;
-    autoConnectLocal?: boolean;
     closing: boolean;
     onCollapse: () => void;
     cinematicEntry?: boolean;
@@ -150,7 +146,7 @@ type CanvasAssistantPanelProps = {
     resizing?: boolean;
 };
 
-export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, projectId, sessions, activeSessionId, onSelectNodeIds, onSessionsChange, onApplyOps, canUndoOps, undoOpsCount, onUndoOps, onPasteImage, agentMode, onAgentModeChange, autoConnectLocal, closing, onCollapse, cinematicEntry = false, onCinematicEntryConsumed, resizing = false }: CanvasAssistantPanelProps) {
+export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, projectId, sessions, activeSessionId, onSelectNodeIds, onSessionsChange, onApplyOps, canUndoOps, undoOpsCount, onUndoOps, onPasteImage, closing, onCollapse, cinematicEntry = false, onCinematicEntryConsumed, resizing = false }: CanvasAssistantPanelProps) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const user = useUserStore((state) => state.user);
     const effectiveConfig = useEffectiveConfig();
@@ -215,10 +211,10 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, project
     const iconButtonStyle = { color: theme.node.muted };
 
     useEffect(() => {
-        if (agentMode !== "online" || view !== "chat") return;
+        if (view !== "chat") return;
         const frame = requestAnimationFrame(() => chatListRef.current?.scrollTo({ top: chatListRef.current.scrollHeight }));
         return () => cancelAnimationFrame(frame);
-    }, [agentBusy, agentMode, localActiveSessionId, messages, view]);
+    }, [agentBusy, localActiveSessionId, messages, view]);
 
     useEffect(() => {
         setRemovedReferenceIds(new Set());
@@ -836,30 +832,16 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, project
         >
                 <AgentPanelChrome
                     theme={theme}
-                    mode={agentMode}
                     context={contextSummary}
                     referenceCount={selectedReferences.length}
                     confirmTools={confirmTools}
-                    canUndo={agentMode === "online" && canUndoOps}
-                    undoCount={agentMode === "online" ? undoOpsCount : 0}
-                    onModeChange={onAgentModeChange}
+                    canUndo={canUndoOps}
+                    undoCount={undoOpsCount}
                     onConfirmToolsChange={(confirmTools) => setAgentState({ confirmTools })}
                     onUndo={undoLastOnlineBatch}
                     onCollapse={collapse}
                 />
-                {agentMode === "local" ? (
-                    <CanvasLocalAgentPanel
-                        embedded
-                        snapshot={snapshot}
-                        canUndoOps={canUndoOps}
-                        undoOpsCount={undoOpsCount}
-                        onApplyOps={onApplyOps}
-                        onUndoOps={onUndoOps}
-                        autoConnect={autoConnectLocal}
-                    />
-                ) : (
-                    onlineContent
-                )}
+                {onlineContent}
         </motion.aside>
     );
 }

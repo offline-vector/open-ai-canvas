@@ -1,0 +1,41 @@
+services:
+  backend:
+    image: s1api-studio-backend:${STUDIO_RELEASE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        GOPROXY: ${GOPROXY:-https://goproxy.cn,direct}
+    environment:
+      CANVAS_BACKEND_ADDR: ":8080"
+      CANVAS_BACKEND_DATA_DIR: /data
+      CANVAS_DATABASE_DRIVER: sqlite
+      CANVAS_CORS_ORIGINS: https://studio.s1api.com,https://studio.aispeedapi.com
+      CANVAS_REGISTRATION_ENABLED: "false"
+      CANVAS_ALLOW_PRIVATE_UPSTREAMS: "false"
+      CANVAS_WORKER_CONCURRENCY: "3"
+      CANVAS_CHANNEL_CONCURRENCY: "3"
+      GIN_MODE: release
+    volumes:
+      - ${STUDIO_DATA_PATH:-./data}:/data
+    restart: unless-stopped
+
+  web:
+    image: s1api-studio-web:${STUDIO_RELEASE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "10.77.77.2:${STUDIO_HTTP_PORT:-13001}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - default
+      - legacy_canvas
+    restart: unless-stopped
+
+networks:
+  legacy_canvas:
+    external: true
+    name: infinite-canvas_default

@@ -8,6 +8,8 @@ import { FRAME_COLLAPSED_HEIGHT, FRAME_COLLAPSED_WIDTH, getFrameChildIds, isFram
 import { applyBatchPrimaryImage, applyNodeConfigPatch } from "@/lib/canvas/canvas-project-domain";
 import { audioExtension, imageExtension, resetGenerationTaskMetadata } from "@/lib/canvas/canvas-project-generation";
 import { CONTENT_MODERATION_ERROR_CODE, isContentModerationError } from "@/lib/generation-error";
+import { getMediaBlob } from "@/services/file-storage";
+import { getImageBlob } from "@/services/image-storage";
 import { ensureCanvasNodeAsset } from "@/services/project-asset-sync";
 import { CanvasNodeType, type CanvasNodeData, type CanvasNodeMetadata, type Position } from "@/types/canvas";
 
@@ -154,10 +156,24 @@ export function useCanvasNodeEditor({
             .catch((error) => message.error(error instanceof Error ? error.message : "资产分类更新失败"));
     }, [canvasId, domainProjectId, message, nodesRef, queryClient, setNodes]);
 
-    const downloadNodeImage = useCallback((node: CanvasNodeData) => {
+    const downloadNodeImage = useCallback(async (node: CanvasNodeData) => {
         if ((node.type !== CanvasNodeType.Image && node.type !== CanvasNodeType.Video && node.type !== CanvasNodeType.Audio) || !node.metadata?.content) return;
-        saveAs(node.metadata.content, `canvas-${node.type}-${node.id}.${node.type === CanvasNodeType.Video ? "mp4" : node.type === CanvasNodeType.Audio ? audioExtension(node.metadata.mimeType) : imageExtension(node.metadata.content)}`);
-    }, []);
+        try {
+            const blob = node.metadata.storageKey
+                ? node.type === CanvasNodeType.Image
+                    ? await getImageBlob(node.metadata.storageKey)
+                    : await getMediaBlob(node.metadata.storageKey)
+                : null;
+            const extension = node.type === CanvasNodeType.Video
+                ? "mp4"
+                : node.type === CanvasNodeType.Audio
+                    ? audioExtension(node.metadata.mimeType)
+                    : imageExtension(blob?.type || node.metadata.mimeType || node.metadata.content);
+            saveAs(blob || node.metadata.content, `canvas-${node.type}-${node.id}.${extension}`);
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "媒体下载失败");
+        }
+    }, [message]);
 
     const saveNodeAsset = useCallback(async (node: CanvasNodeData) => {
         if (node.type !== CanvasNodeType.Text && node.type !== CanvasNodeType.Image && node.type !== CanvasNodeType.Video && node.type !== CanvasNodeType.Audio) return message.error("当前节点类型不能保存为素材");

@@ -48,7 +48,7 @@ export default function CanvasPage() {
     };
     const createAndEnter = () => {
         void createCanvasProjectWithRemoteSync(`自由画布 ${projects.length + 1}`).then(({ id, syncError }) => {
-            if (syncError) message.warning(syncError instanceof Error ? `画布已在本地创建，云端同步失败：${syncError.message}` : "画布已在本地创建，云端同步失败");
+            if (syncError) message.warning(syncError instanceof Error ? `画布已在本地创建，后端备份失败：${syncError.message}` : "画布已在本地创建，后端备份失败");
             enterProject(id);
         });
     };
@@ -154,7 +154,7 @@ export default function CanvasPage() {
             return;
         }
         void createCanvasProjectWithRemoteSync(`自由画布 ${projects.length + 1}`).then(({ id, syncError }) => {
-            if (syncError) message.warning(syncError instanceof Error ? `画布已在本地创建，云端同步失败：${syncError.message}` : "画布已在本地创建，云端同步失败");
+            if (syncError) message.warning(syncError instanceof Error ? `画布已在本地创建，后端备份失败：${syncError.message}` : "画布已在本地创建，后端备份失败");
             enterProject(id);
         });
     }, [hydrated, message, mode, projects]);

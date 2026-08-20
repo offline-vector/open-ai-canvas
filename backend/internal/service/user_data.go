@@ -3,6 +3,8 @@ package service
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -85,7 +87,8 @@ func (s *Service) UpsertUserAsset(userID string, raw json.RawMessage) (UserDataS
 }
 
 func (s *Service) DeleteUserAsset(userID string, id string) error {
-	if _, err := s.repo.AssetForUser(userID, id); err != nil {
+	asset, err := s.repo.AssetForUser(userID, id)
+	if err != nil {
 		return err
 	}
 	references, err := s.repo.AssetReferenceCount(id)
@@ -95,7 +98,82 @@ func (s *Service) DeleteUserAsset(userID string, id string) error {
 	if references > 0 {
 		return BadAuthRequest("素材仍被项目或镜头引用，请先解除引用")
 	}
+	resourceIDs := extractResourceIDs(asset.PayloadJSON)
+	versions, err := s.repo.AssetVersions(id)
+	if err != nil {
+		return err
+	}
+	for _, version := range versions {
+		resourceIDs = append(resourceIDs, extractResourceIDs(version.DefinitionJSON)...)
+		representations, representationErr := s.repo.AssetRepresentations(version.ID)
+		if representationErr != nil {
+			return representationErr
+		}
+		for _, representation := range representations {
+			if representation.ResourceID != "" {
+				resourceIDs = append(resourceIDs, representation.ResourceID)
+			}
+		}
+	}
+	resourceIDs = uniqueResourceStrings(resourceIDs)
+	for _, resourceID := range resourceIDs {
+		resource, resourceErr := s.repo.ResourceForUser(userID, resourceID)
+		if resourceErr != nil {
+			if errors.Is(resourceErr, gorm.ErrRecordNotFound) {
+				continue
+			}
+			return resourceErr
+		}
+		used, referenceErr := s.repo.ResourceReferenceCount(userID, resourceID, id)
+		if referenceErr != nil {
+			return referenceErr
+		}
+		if used > 0 {
+			continue
+		}
+		objectRefs, referenceErr := s.repo.ResourceObjectReferenceCount(resource)
+		if referenceErr != nil {
+			return referenceErr
+		}
+		if objectRefs <= 1 {
+			if deleteErr := s.deleteResourceObject(userID, resource); deleteErr != nil {
+				return fmt.Errorf("删除素材资源失败，已保留素材记录：%w", deleteErr)
+			}
+		}
+		if deleteErr := s.repo.DeleteResource(userID, resourceID); deleteErr != nil {
+			return deleteErr
+		}
+	}
 	return s.repo.DeleteAsset(userID, id)
+}
+
+var resourceReferencePattern = regexp.MustCompile(`(?:resource:|/api/resources/)([A-Za-z0-9_-]{6,})`)
+
+func extractResourceIDs(value string) []string {
+	matches := resourceReferencePattern.FindAllStringSubmatch(value, -1)
+	result := make([]string, 0, len(matches))
+	for _, match := range matches {
+		if len(match) > 1 {
+			result = append(result, match[1])
+		}
+	}
+	return result
+}
+
+func uniqueResourceStrings(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		if value == "" {
+			continue
+		}
+		if _, exists := seen[value]; exists {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+	return result
 }
 
 func (s *Service) UserAssets(userID string) ([]json.RawMessage, error) {

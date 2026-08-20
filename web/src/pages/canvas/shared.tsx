@@ -229,7 +229,7 @@ export default function SharedCanvasPage() {
                     <span className="max-w-[45vw] truncate text-base font-semibold">{title}</span>
                     <span className="inline-flex items-center gap-1 text-xs" style={{ color: theme.node.muted }}><Eye className="size-3.5" />只读分享</span>
                 </div>
-                <Link className="pointer-events-auto" to="/login"><Button type="text" icon={<LogIn className="size-4" />}>登录</Button></Link>
+                <Link className="pointer-events-auto" to="/create"><Button type="text" icon={<LogIn className="size-4" />}>进入创作台</Button></Link>
             </header>
 
             <InfiniteCanvas containerRef={containerRef} viewport={viewport} backgroundMode={backgroundMode} onViewportChange={onViewportChange} onViewportPreviewChange={(next) => { viewportRef.current = next; }} onCanvasDeselect={() => { setSelectedNodeId(null); setContextMenu(null); }} onContextMenu={(event) => openContextMenu(event)} onDrop={(event) => { event.preventDefault(); unauthorized(); }}>

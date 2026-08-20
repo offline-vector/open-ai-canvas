@@ -3,7 +3,6 @@ import { Cloud, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { getUserOSSSetting, updateUserOSSSetting, type UserOSSSetting } from "@/services/api/resources";
-import { useUserStore } from "@/stores/use-user-store";
 
 type OSSFormValues = {
     enabled?: boolean;
@@ -17,7 +16,6 @@ type OSSFormValues = {
 };
 
 export function UserOSSSettingsForm() {
-    const actor = useUserStore((state) => state.user);
     const { message } = App.useApp();
     const [form] = Form.useForm<OSSFormValues>();
     const [setting, setSetting] = useState<UserOSSSetting | null>(null);
@@ -26,7 +24,6 @@ export function UserOSSSettingsForm() {
     const savedAt = formatSavedAt(setting?.updatedAt);
 
     useEffect(() => {
-        if (!actor?.id) return;
         let active = true;
         setLoading(true);
         void getUserOSSSetting()
@@ -40,11 +37,7 @@ export function UserOSSSettingsForm() {
         return () => {
             active = false;
         };
-    }, [actor?.id, form, message]);
-
-    if (!actor) {
-        return <div className="rounded-md border border-dashed border-border px-5 py-10 text-center text-sm text-foreground/55">登录后可配置个人 OSS。</div>;
-    }
+    }, [form, message]);
 
     const save = async () => {
         const values = await form.validateFields();

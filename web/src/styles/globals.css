@@ -163,7 +163,14 @@
     /* 实心（反相）按钮：不要写 background:var(--foreground) + color:var(--background)，
        两者在不同层级里解析结果不稳定，会出现同色不可读的按钮。用显式配对 token。 */
     --btn-solid-bg: #171717;
+    --btn-solid-hover-bg: #303030;
+    --btn-solid-active-bg: #404040;
     --btn-solid-fg: #ffffff;
+    --control-selected-bg: rgba(17, 17, 17, 0.09);
+    --control-selected-hover-bg: rgba(17, 17, 17, 0.13);
+    --control-selected-fg: #171717;
+    --control-selected-border: rgba(17, 17, 17, 0.18);
+    --control-focus-ring: color-mix(in srgb, var(--ring) 72%, transparent);
 
     /* --- 6. Elevation（z-index 14 档，按视觉层划分，见 ADR-001）--- */
     --z-canvas: 0;              /* L0 画布底 */
@@ -177,6 +184,7 @@
     --z-modal: 100;             /* L8 对话框 */
     --z-modal-overlay: 110;     /* L9 遮罩 */
     --z-popover: 200;           /* L10 弹出层 */
+    --z-dialog-popover: 1100;   /* 设置浮层必须高于 AntD Modal 内容 */
     --z-toast: 500;             /* L11 通知 */
     --z-tooltip: 1000;          /* L12 提示 */
     --z-loader: 1200;           /* 全屏加载遮罩 */
@@ -224,6 +232,11 @@
     --opa-subtle: 0.55;
     --opa-medium: 0.72;
     --opa-full: 1;
+    --glass-blur: 10px;
+    --glass-saturate: 112%;
+    --glass-alpha: 0.94;
+    --glass-alpha-strong: 0.97;
+    --glass-border-alpha: 0.78;
 }
 
 /* prefers-reduced-motion 降级（对应 #99 三级降级策略 L1）*/
@@ -4034,11 +4047,14 @@
     .style-center-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        grid-auto-rows: max-content;
+        align-items: start;
         gap: var(--space-3);
         overscroll-behavior: contain;
     }
 
     .style-center-card {
+        min-height: 350px;
         transition: border-color var(--motion-dur-fast) var(--motion-ease-out), transform var(--motion-dur-fast) var(--motion-ease-out);
     }
 
@@ -5281,6 +5297,17 @@
             transform 160ms var(--motion-ease-out);
     }
 
+    .canvas-config-generate-button.ant-btn-primary:disabled,
+    .canvas-node-generate-button.ant-btn:disabled {
+        cursor: not-allowed !important;
+        border-color: var(--border) !important;
+        background: var(--muted) !important;
+        color: var(--muted-foreground) !important;
+        -webkit-text-fill-color: var(--muted-foreground) !important;
+        opacity: 1 !important;
+        box-shadow: none !important;
+    }
+
     .canvas-connection-handle {
         touch-action: none;
     }
@@ -5324,6 +5351,19 @@
             box-shadow var(--motion-state) var(--ease-aceternity),
             background-color var(--motion-state) var(--ease-aceternity),
             transform var(--motion-panel) var(--ease-aceternity);
+    }
+
+    .canvas-node-inline-action {
+        color: var(--workspace-fg);
+        background: color-mix(in srgb, var(--card-surface) 92%, transparent);
+        border: 1px solid var(--workspace-border);
+        border-radius: 999px;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .canvas-node-inline-action:hover {
+        background: var(--workspace-muted);
+        color: var(--workspace-fg);
     }
 
     .canvas-node-shell.aceternity-comet-card {

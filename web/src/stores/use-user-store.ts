@@ -27,6 +27,7 @@ export type RuntimeLimits = {
 export type FeatureAvailability = {
     shortDramaEnabled: boolean;
     taskCenterEnabled: boolean;
+    /** 兼容上游任务类型；无账户版本固定关闭。 */
     creditsEnabled: boolean;
     configured?: boolean;
     updatedBy?: string;
@@ -36,7 +37,7 @@ export type FeatureAvailability = {
 export const defaultFeatureAvailability: FeatureAvailability = {
     shortDramaEnabled: true,
     taskCenterEnabled: true,
-    creditsEnabled: true,
+    creditsEnabled: false,
 };
 
 type UserStore = {

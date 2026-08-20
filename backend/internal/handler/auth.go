@@ -890,7 +890,28 @@ func readPayloadModel(body []byte) string {
 }
 
 func currentUser(c *gin.Context, svc *service.Service) (*model.User, error) {
-	return svc.CurrentUser(sessionCookie(c))
+	cookieValue, _ := c.Cookie(service.BrowserWorkspaceCookieName)
+	user, workspaceID, shouldSetCookie, err := svc.BrowserWorkspace(cookieValue)
+	if err != nil {
+		return nil, err
+	}
+	if shouldSetCookie {
+		setBrowserWorkspaceCookie(c, workspaceID)
+	}
+	return user, nil
+}
+
+func setBrowserWorkspaceCookie(c *gin.Context, value string) {
+	secure := c.Request.TLS != nil || strings.EqualFold(strings.TrimSpace(c.GetHeader("X-Forwarded-Proto")), "https")
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     service.BrowserWorkspaceCookieName,
+		Value:    value,
+		Path:     "/",
+		MaxAge:   365 * 24 * 60 * 60,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   secure,
+	})
 }
 
 func sessionCookie(c *gin.Context) string {

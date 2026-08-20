@@ -425,31 +425,28 @@ func (s *Service) AdminDisableRedeemCode(actor *model.User, batchID string, code
 }
 
 func (s *Service) taskBillingOrder(userID string, task *model.Task, input map[string]any) (*model.BillingOrder, error) {
-	enabled, err := s.FeatureEnabled(FeatureCredits)
-	if err != nil {
-		return nil, err
-	}
-	if !enabled {
-		return nil, nil
-	}
-	config, _ := input["config"].(map[string]any)
-	if config == nil {
-		return nil, nil
-	}
-	channelID := strings.TrimSpace(fmt.Sprint(config["channelId"]))
-	if channelID == "" {
-		channelID = systemChannelIDFromBaseURL(fmt.Sprint(config["baseUrl"]))
-	}
-	if channelID == "" {
-		return nil, nil
-	}
-	modelKey := strings.TrimPrefix(strings.TrimSpace(fmt.Sprint(config["model"])), "models/")
-	capability := normalizeCapability(fmt.Sprint(input["mode"]))
-	if capability == "" {
-		capability = capabilityFromTaskType(task.Type)
-	}
-	scene := firstNonEmpty(strings.TrimSpace(task.Operation), task.Type)
-	return s.newBillingOrder(userID, task.ID, "task:"+task.ID+":"+newID(), channelID, modelKey, capability, scene, billingQuantity(capability, config["videoSeconds"]), estimateTaskTokens(input))
+	// 本地工作区使用用户自己的 API Key，不创建积分账单。
+	return nil, nil
+	/*
+		config, _ := input["config"].(map[string]any)
+		if config == nil {
+			return nil, nil
+		}
+		channelID := strings.TrimSpace(fmt.Sprint(config["channelId"]))
+		if channelID == "" {
+			channelID = systemChannelIDFromBaseURL(fmt.Sprint(config["baseUrl"]))
+		}
+		if channelID == "" {
+			return nil, nil
+		}
+		modelKey := strings.TrimPrefix(strings.TrimSpace(fmt.Sprint(config["model"])), "models/")
+		capability := normalizeCapability(fmt.Sprint(input["mode"]))
+		if capability == "" {
+			capability = capabilityFromTaskType(task.Type)
+		}
+		scene := firstNonEmpty(strings.TrimSpace(task.Operation), task.Type)
+		return s.newBillingOrder(userID, task.ID, "task:"+task.ID+":"+newID(), channelID, modelKey, capability, scene, billingQuantity(capability, config["videoSeconds"]), estimateTaskTokens(input))
+	*/
 }
 
 func (s *Service) ReserveProxyBilling(userID string, channelID string, modelKey string, capability string, scene string, idempotencyKey string, quantity int64) (*model.BillingOrder, error) {
@@ -457,27 +454,23 @@ func (s *Service) ReserveProxyBilling(userID string, channelID string, modelKey 
 }
 
 func (s *Service) ReserveProxyBillingWithBody(userID string, channelID string, modelKey string, capability string, scene string, idempotencyKey string, quantity int64, requestBody []byte) (*model.BillingOrder, error) {
-	enabled, err := s.FeatureEnabled(FeatureCredits)
-	if err != nil {
-		return nil, err
-	}
-	if !enabled {
-		return nil, nil
-	}
-	if strings.TrimSpace(idempotencyKey) == "" {
-		idempotencyKey = newID()
-	}
-	order, err := s.newBillingOrder(userID, "", "proxy:"+idempotencyKey, channelID, modelKey, capability, firstNonEmpty(strings.TrimSpace(scene), "system_proxy"), quantity, estimateProxyTokens(requestBody))
-	if err != nil {
-		return nil, err
-	}
-	if err := s.repo.ReserveBillingOrder(order); err != nil {
-		if errors.Is(err, repository.ErrInsufficientCredits) {
-			return nil, BadAuthRequest("积分不足，请先使用兑换码充值")
+	return nil, nil
+	/*
+		if strings.TrimSpace(idempotencyKey) == "" {
+			idempotencyKey = newID()
 		}
-		return nil, err
-	}
-	return order, nil
+		order, err := s.newBillingOrder(userID, "", "proxy:"+idempotencyKey, channelID, modelKey, capability, firstNonEmpty(strings.TrimSpace(scene), "system_proxy"), quantity, estimateProxyTokens(requestBody))
+		if err != nil {
+			return nil, err
+		}
+		if err := s.repo.ReserveBillingOrder(order); err != nil {
+			if errors.Is(err, repository.ErrInsufficientCredits) {
+				return nil, BadAuthRequest("积分不足，请先使用兑换码充值")
+			}
+			return nil, err
+		}
+		return order, nil
+	*/
 }
 
 func (s *Service) newBillingOrder(userID string, taskID string, idempotencyKey string, channelID string, modelKey string, capability string, scene string, requestedQuantity int64, tokenEstimate tokenBillingEstimate) (*model.BillingOrder, error) {

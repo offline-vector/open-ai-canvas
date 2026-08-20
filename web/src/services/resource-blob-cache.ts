@@ -147,9 +147,10 @@ async function readCachedObjectUrl(target: ResourceCacheMeta) {
 async function cacheTarget(storageKey: string): Promise<ResourceCacheMeta | null> {
     const resourceId = resourceIdFromStorageKey(storageKey);
     if (!resourceId) return null;
+    // 资源接口已经用匿名工作区 Cookie 校验归属。移除登录后，浏览器 scope 固定为
+    // guest，而后端资源 owner 是 ws-*；继续比较两者会把合法资源误判为越权。
     const resource = await getResource(resourceId);
-    const userScope = getActiveUserScope();
-    if (userScope === "guest" || resource.userId !== userScope) throw new Error("当前用户不能读取该媒体缓存");
+    const userScope = resource.userId || getActiveUserScope();
     const version = resourceVersion(resource);
     return {
         key: `${userScope}:${resourceId}:${version}`,

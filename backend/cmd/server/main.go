@@ -63,7 +63,7 @@ func main() {
 
 	r := gin.New()
 	r.Use(gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
-		return fmt.Sprintf("%s - [%s] \"%s %s\" %d %s %s\n", param.ClientIP, param.TimeStamp.Format(time.RFC3339), param.Method, redactCanvasSharePath(param.Path), param.StatusCode, param.Latency, param.ErrorMessage)
+		return fmt.Sprintf("%s - [%s] \"%s %s\" %d %s %s\n", param.ClientIP, param.TimeStamp.Format(time.RFC3339), param.Method, param.Path, param.StatusCode, param.Latency, param.ErrorMessage)
 	}), gin.Recovery())
 	r.Use(cors())
 	handler.ConfigureRuntime(svc)
@@ -71,14 +71,9 @@ func main() {
 	api.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"code": 0, "data": gin.H{"status": "ok"}, "msg": "ok"})
 	})
-	handler.RegisterOAuthCallbackRoutes(r, svc)
-	handler.RegisterAuthRoutes(api, svc)
 	handler.RegisterFeatureAvailabilityRoutes(api, svc)
-	handler.RegisterAdminRoutes(api, svc)
-	handler.RegisterAdminAnalyticsRoutes(api, svc)
-	handler.RegisterAnnouncementRoutes(api, svc)
-	handler.RegisterFinanceRoutes(api, svc)
-	// 登录态模型目录代理：避免浏览器直连各上游时分别处理 CORS。
+	// 单机工作区不注册认证、OAuth、用户运营、积分与财务接口。
+	// 模型目录与生成请求仍经后端中转，以兼容浏览器 CORS 和长任务。
 	handler.RegisterChannelModelRoutes(api, svc)
 	handler.RegisterSystemProxyRoutes(api, svc)
 	handler.RegisterCustomRelayRoutes(api, svc)
@@ -89,25 +84,12 @@ func main() {
 	projectAPI := api.Group("")
 	projectAPI.Use(handler.RequireFeature(svc, service.FeatureShortDrama))
 	handler.RegisterProjectRoutes(projectAPI, svc)
-	handler.RegisterCanvasShareRoutes(api, svc)
 
 	addr := env("CANVAS_BACKEND_ADDR", ":8080")
-	log.Printf("影策 backend listening on %s", addr)
+	log.Printf("影策本地工作区 backend listening on %s", addr)
 	if err := r.Run(addr); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func redactCanvasSharePath(path string) string {
-	const prefix = "/api/public/canvas-shares/"
-	if !strings.HasPrefix(path, prefix) {
-		return path
-	}
-	remainder := strings.TrimPrefix(path, prefix)
-	if index := strings.IndexByte(remainder, '/'); index >= 0 {
-		return prefix + ":token" + remainder[index:]
-	}
-	return prefix + ":token"
 }
 
 func env(key string, fallback string) string {

@@ -345,6 +345,46 @@ func (s *Service) storeResource(userID string, kind string, fileName string, mim
 	return &resource, nil
 }
 
+func (s *Service) deleteResourceObject(userID string, resource *model.Resource) error {
+	if resource == nil || resource.ObjectKey == "" {
+		return nil
+	}
+	if resource.Provider == "local" {
+		root, err := filepath.Abs(filepath.Join(s.dataDir, "resources"))
+		if err != nil {
+			return err
+		}
+		path, err := filepath.Abs(filepath.Join(root, filepath.FromSlash(resource.ObjectKey)))
+		if err != nil {
+			return err
+		}
+		if path != root && !strings.HasPrefix(path, root+string(os.PathSeparator)) {
+			return errors.New("资源路径不在资源目录内，已拒绝删除")
+		}
+		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		return nil
+	}
+	setting, err := s.ossSettingForResource(userID, resource)
+	if err != nil {
+		return err
+	}
+	request, err := newOSSRequest(http.MethodDelete, setting, resource.ObjectKey, "", nil)
+	if err != nil {
+		return err
+	}
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusNotFound && (response.StatusCode < 200 || response.StatusCode >= 300) {
+		return fmt.Errorf("OSS 删除失败：%s", response.Status)
+	}
+	return nil
+}
+
 func localObjectKey(userID string, kind string, fileName string, now time.Time) string {
 	ext := strings.ToLower(filepath.Ext(fileName))
 	return path.Join("users", safeObjectSegment(userID), kind, now.Format("2006/01/02"), newID()+ext)

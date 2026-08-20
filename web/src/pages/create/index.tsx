@@ -110,7 +110,7 @@ export default function CreatePage() {
     const [conversations, setConversations] = useState<CreationConversation[]>([]);
     const [activeId, setActiveId] = useState("");
     const [hydrated, setHydrated] = useState(false);
-    const [mode, setMode] = useState<CreationMode>("video");
+    const [mode, setMode] = useState<CreationMode>("image");
     const [prompt, setPrompt] = useState("");
     const [attachments, setAttachments] = useState<CreationAttachment[]>([]);
     const [draftReferences, setDraftReferences] = useState<CreationReference[]>([]);

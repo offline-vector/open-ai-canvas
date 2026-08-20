@@ -1,16 +1,14 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Link } from "react-router";
-import { Bot, Check, ChevronDown, Clapperboard, Coins, Focus, FolderKanban, Gauge, Home, LayoutGrid, LoaderCircle, Menu, Pencil, Plus, Redo2, Search, Settings2, Share2, Sparkles, Trash2, Undo2, Upload } from "lucide-react";
+import { Bot, Check, ChevronDown, Clapperboard, Focus, FolderKanban, Gauge, Home, LayoutGrid, Menu, Pencil, Plus, Redo2, Search, Settings2, Sparkles, Trash2, Undo2, Upload } from "lucide-react";
 import { Button, Dropdown, Modal, Tooltip } from "antd";
 
-import { useWalletBalance } from "@/hooks/use-wallet-balance";
 import { aceternityMotion } from "@/lib/aceternity-motion";
 import type { CanvasContextSummary } from "@/lib/canvas/canvas-context-summary";
 import type { CanvasShortDramaProgress } from "@/lib/canvas/canvas-short-drama";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
-import { useUserStore } from "@/stores/use-user-store";
 import type { CanvasMediaPerformanceMode, CanvasWorkspaceMode } from "@/types/canvas";
 
 type CanvasTopBarProps = {
@@ -30,9 +28,7 @@ type CanvasTopBarProps = {
     onImportImage: () => void;
     onUndo: () => void;
     onRedo: () => void;
-    onShare: () => void;
     agentOpen: boolean;
-    compactAgentStatus?: { connected: boolean; enabled: boolean; activity: string };
     onToggleAgent: () => void;
     shortcutRequestNonce: number;
     mediaPerformanceMode: CanvasMediaPerformanceMode;
@@ -60,9 +56,7 @@ export function CanvasTopBar({
     onImportImage,
     onUndo,
     onRedo,
-    onShare,
     agentOpen,
-    compactAgentStatus,
     onToggleAgent,
     shortcutRequestNonce,
     mediaPerformanceMode,
@@ -73,9 +67,6 @@ export function CanvasTopBar({
     shortDramaGuide,
 }: CanvasTopBarProps) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
-    const user = useUserStore((state) => state.user);
-    const creditsEnabled = useUserStore((state) => state.features.creditsEnabled);
-    const { availableMicrocredits, refreshing } = useWalletBalance(user?.id, creditsEnabled);
     const titleRef = useRef<HTMLDivElement>(null);
     const [shortcutsOpen, setShortcutsOpen] = useState(false);
     const [workspaceModeOpen, setWorkspaceModeOpen] = useState(false);
@@ -206,18 +197,6 @@ export function CanvasTopBar({
                     >
                         <Button type="text" className="!hidden !h-10 !w-10 !min-w-10 !rounded-xl !p-0 lg:!inline-flex" style={{ color: theme.node.text }} icon={<Gauge className="size-4" />} aria-label="媒体性能模式" title="媒体性能模式" />
                     </Dropdown>
-                    {compactAgentStatus ? <CompactAgentStatus status={compactAgentStatus} onClick={onToggleAgent} /> : null}
-                    {user && creditsEnabled ? (
-                        <Link
-                            to="/wallet"
-                            className="inline-flex h-9 min-w-[5.5rem] items-center justify-center gap-1.5 rounded-lg px-2.5 text-xs font-medium tabular-nums transition hover:bg-black/5 dark:hover:bg-white/10"
-                            style={{ color: theme.node.text }}
-                            title="查看积分明细"
-                        >
-                            {refreshing && availableMicrocredits === null ? <LoaderCircle className="size-3.5 animate-spin opacity-60" /> : <Coins className="size-3.5" />}
-                            <span>{availableMicrocredits === null ? "--" : (availableMicrocredits / 1_000_000).toLocaleString("zh-CN", { maximumFractionDigits: 3 })}</span>
-                        </Link>
-                    ) : null}
                     <Tooltip title="进入专注模式（⇧⌘F）">
                         <Button
                             type="text"
@@ -242,7 +221,6 @@ export function CanvasTopBar({
                             </Button>
                         </Tooltip>
                     ) : null}
-                    <Button type="text" className="!h-10 !w-10 !min-w-10 !rounded-xl !p-0" style={{ color: theme.node.text }} icon={<Share2 className="size-4" />} onClick={onShare} aria-label="分享画布" title="分享画布" />
                     <span className="h-6 w-px" style={{ background: theme.toolbar.border }} />
                     <Button
                         type="text"
@@ -389,18 +367,6 @@ function MenuLabel({ text, shortcut }: { text: string; shortcut: string }) {
 function canvasTitleInputSize(value: string) {
     const visualLength = Array.from(value || "画布名称").reduce((length, character) => length + (character.codePointAt(0)! > 0xff ? 2 : 1), 0);
     return Math.min(30, Math.max(5, visualLength));
-}
-
-function CompactAgentStatus({ status, onClick }: { status: { connected: boolean; enabled: boolean; activity: string }; onClick: () => void }) {
-    const theme = canvasThemes[useThemeStore((state) => state.theme)];
-    const label = status.connected ? "已连接到本地 Codex" : status.enabled ? status.activity || "连接中" : "正在连接本地 Codex";
-    const dotColor = status.connected ? "#22c55e" : status.enabled ? "#f59e0b" : theme.node.muted;
-    return (
-        <button type="button" className="flex h-10 items-center gap-2 rounded-xl px-3 text-sm font-medium transition hover:opacity-85" style={{ background: theme.toolbar.panel, color: theme.node.text, boxShadow: "0 10px 30px rgba(28,25,23,.10)" }} onClick={onClick} title="打开本地 Codex 面板">
-            <span className="size-2 rounded-full" style={{ background: dotColor }} />
-            <span className="max-w-[180px] truncate">{label}</span>
-        </button>
-    );
 }
 
 function Shortcut({ keys, value }: { keys: string[]; value: string }) {

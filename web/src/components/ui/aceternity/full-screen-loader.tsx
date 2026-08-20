@@ -9,7 +9,7 @@ type FullScreenLoaderProps = {
     className?: string;
 };
 
-export function FullScreenLoader({ label = "正在恢复创作空间", detail = "同步账号、模型和项目数据", className }: FullScreenLoaderProps) {
+export function FullScreenLoader({ label = "正在恢复创作空间", detail = "读取模型、项目和本地数据", className }: FullScreenLoaderProps) {
     const reducedMotion = useReducedMotion();
 
     return (

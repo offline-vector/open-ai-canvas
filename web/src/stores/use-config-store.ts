@@ -76,19 +76,20 @@ export type AiConfig = {
 export const CONFIG_STORE_KEY = "open_ai_canvas:ai_config_store";
 export type ModelCapability = "image" | "video" | "text" | "audio";
 const CHANNEL_MODEL_SEPARATOR = "::";
-const OPENAI_BASE_URL = "https://api.openai.com";
+const S1API_BASE_URL = "https://s1api.com/v1";
+const LEGACY_OPENAI_BASE_URL = "https://api.openai.com";
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com";
 
 export const defaultConfig: AiConfig = {
     channelMode: "local",
-    baseUrl: OPENAI_BASE_URL,
+    baseUrl: S1API_BASE_URL,
     apiKey: "",
     apiFormat: "openai",
     channels: [
         {
             id: "default",
             name: "默认渠道",
-            baseUrl: OPENAI_BASE_URL,
+            baseUrl: S1API_BASE_URL,
             apiKey: "",
             apiFormat: "openai",
             models: ["gpt-image-2", "grok-imagine-video", "gpt-5.5", "gpt-4o-mini-tts"],
@@ -470,7 +471,26 @@ function normalizeChannels(config: AiConfig, ensureDefault = true) {
             }),
         );
     }
-    return channels.map((channel) => ({ ...channel, models: uniqueRawModels(channel.models) }));
+    return channels.map((channel) => ({
+        ...channel,
+        baseUrl: normalizePersistedBaseUrl(channel),
+        models: uniqueRawModels(channel.models),
+    }));
+}
+
+function normalizePersistedBaseUrl(channel: ModelChannel) {
+    // 一版线上构建把同源 S1API 地址持久化为相对路径 /v1；它无法通过 URL 校验，
+    // 且会让浏览器把请求发往 Studio 自身。只迁移这个精确历史值，不改用户自定义地址。
+    if (channel.baseUrl.trim().replace(/\/+$/, "") === "/v1") return S1API_BASE_URL;
+    return isLegacyEmptyDefaultChannel(channel) ? S1API_BASE_URL : channel.baseUrl;
+}
+
+function isLegacyEmptyDefaultChannel(channel: ModelChannel) {
+    return channel.scope !== "system"
+        && channel.id === "default"
+        && channel.name.trim() === "默认渠道"
+        && !channel.apiKey.trim()
+        && channel.baseUrl.trim().replace(/\/+$/, "") === LEGACY_OPENAI_BASE_URL;
 }
 
 function isEmptyDefaultChannel(channel: ModelChannel) {
@@ -484,15 +504,15 @@ function isEmptyDefaultChannel(channel: ModelChannel) {
 }
 
 export function defaultBaseUrlForApiFormat(apiFormat: ApiCallFormat) {
-    return apiFormat === "gemini" ? GEMINI_BASE_URL : OPENAI_BASE_URL;
+    return apiFormat === "gemini" ? GEMINI_BASE_URL : S1API_BASE_URL;
 }
 
 export function defaultBaseUrlForChannelInterface(interfaceType?: ChannelInterfaceType) {
     if (interfaceType === "gemini-veo") return GEMINI_BASE_URL;
     if (interfaceType === "volcengine-ark-image" || interfaceType === "volcengine-ark-video") return "https://ark.cn-beijing.volces.com/api/v3";
     if (interfaceType === "volcengine-jimeng-image" || interfaceType === "volcengine-jimeng-video") return "https://visual.volcengineapi.com";
-    if (interfaceType === "grok-image" || interfaceType === "newapi" || interfaceType === "newapi-channel-1" || interfaceType === "newapi-channel-2" || interfaceType === "xai-video") return "";
-    return OPENAI_BASE_URL;
+    if (interfaceType === "grok-image" || interfaceType === "newapi" || interfaceType === "newapi-channel-1" || interfaceType === "newapi-channel-2" || interfaceType === "xai-video") return S1API_BASE_URL;
+    return S1API_BASE_URL;
 }
 
 function capabilityForChannelInterface(interfaceType?: ChannelInterfaceType): ModelCapability | undefined {
