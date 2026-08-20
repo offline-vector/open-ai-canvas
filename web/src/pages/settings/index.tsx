@@ -1,5 +1,5 @@
 import { App, Button, Form, Input, InputNumber, Popconfirm, Segmented, Select, Tag, Tooltip } from "antd";
-import { ArrowLeft, Boxes, ChevronDown, ChevronUp, CircleCheck, Cloud, Info, MessageSquareText, Plus, RadioTower, RefreshCw, SlidersHorizontal, Trash2 } from "lucide-react";
+import { ArrowLeft, Boxes, ChevronDown, ChevronUp, CircleCheck, Cloud, ExternalLink, Info, MessageSquareText, Plus, RadioTower, RefreshCw, SlidersHorizontal, Trash2 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
@@ -321,6 +321,17 @@ export default function SettingsPage() {
                                                                                 <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-foreground/55">
                                                                                     {channelProtocolLabel(channel)} · 已保存 {channel.models.length} 个模型
                                                                                     <ChannelStatus channel={channel} />
+                                                                                    {channelConnectionMode(channel) === "openai" ? (
+                                                                                        <a
+                                                                                            className="inline-flex items-center gap-1 font-medium text-foreground/75 transition-colors hover:text-foreground"
+                                                                                            href="https://s1api.com/keys"
+                                                                                            target="_blank"
+                                                                                            rel="noreferrer"
+                                                                                        >
+                                                                                            获取 API Key
+                                                                                            <ExternalLink className="size-3" aria-hidden="true" />
+                                                                                        </a>
+                                                                                    ) : null}
                                                                                 </div>
                                                                             </div>
                                                                             <div className="flex w-full justify-end gap-2 sm:w-auto sm:shrink-0">
@@ -402,13 +413,6 @@ export default function SettingsPage() {
                                                                                     label="API Key"
                                                                                     htmlFor={`channel-${channel.id}-api-key`}
                                                                                     className="mb-0 lg:col-span-5"
-                                                                                    extra={
-                                                                                        channelConnectionMode(channel) === "openai" ? (
-                                                                                            <a href="https://s1api.com/keys" target="_blank" rel="noreferrer">
-                                                                                                获取 API Key
-                                                                                            </a>
-                                                                                        ) : undefined
-                                                                                    }
                                                                                 >
                                                                                     <Input.Password
                                                                                         id={`channel-${channel.id}-api-key`}
