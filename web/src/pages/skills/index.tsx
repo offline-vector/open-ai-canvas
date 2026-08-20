@@ -31,7 +31,7 @@ export default function SkillsPage() {
     const debouncedSearch = useDebouncedValue(search, 250);
     const [tag, setTag] = useState("all");
     const [page, setPage] = useState(1);
-    const [pageSize, setPageSize] = useState(20);
+    const [pageSize, setPageSize] = useState(40);
     const [skills, setSkills] = useState<Skill[]>([]);
     const [categories, setCategories] = useState<SkillCategory[]>(fallbackSkillCategories);
     const [total, setTotal] = useState(0);
@@ -163,7 +163,7 @@ export default function SkillsPage() {
     return (
         <>
             <WorkspacePage className="library-page skills-library-page" grid>
-                <PageHeader icon="skills" title="技能库" description="把常用的提示词、角色设定和创作方法收进自己的工具架。" meta={<span className="text-xs text-foreground/45">{total} 个技能</span>} actions={null} />
+                <PageHeader icon="skills" title="技能库" description="把常用的提示词、角色设定和创作方法收进自己的工具架。" meta={<span className="text-xs text-foreground/45">共 {total} 个技能</span>} actions={null} />
 
                 <div className="mt-1 flex flex-col border-b border-border/75 xl:flex-row xl:items-end xl:justify-between">
                     <nav className="thin-scrollbar -mb-px flex min-w-0 overflow-x-auto" aria-label="技能库范围" role="tablist">
@@ -228,7 +228,7 @@ export default function SkillsPage() {
                     />
                 )}
 
-                <PaginationBar current={page} pageSize={pageSize} total={total} pageSizeOptions={[20, 40, 80]} onChange={(nextPage, nextPageSize) => { setPage(nextPageSize !== pageSize ? 1 : nextPage); setPageSize(nextPageSize); }} />
+                <PaginationBar current={page} pageSize={pageSize} total={total} pageSizeOptions={[40, 80]} onChange={(nextPage, nextPageSize) => { setPage(nextPageSize !== pageSize ? 1 : nextPage); setPageSize(nextPageSize); }} />
             </WorkspacePage>
 
             <SkillDetailDrawer skill={activeSkill} loading={detailLoading} mutating={Boolean(activeSkill && mutatingID === activeSkill.skill_id)} categories={categories} onClose={() => setActiveSkill(null)} onAdd={(skill) => void toggleAdded(skill)} onLike={(skill) => void toggleLiked(skill)} onEdit={(skill) => void openEditor(skill)} />
