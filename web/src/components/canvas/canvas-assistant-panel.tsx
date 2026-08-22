@@ -37,6 +37,7 @@ import { resolveStoryboardGenerationContext } from "@/lib/canvas/canvas-storyboa
 import { buildSkillMentionReferences } from "@/lib/canvas/canvas-skill-mentions";
 import { buildCanvasWorkflowOps, looksLikeWorkflowRequest, type CanvasWorkflowInput } from "@/lib/canvas/canvas-agent-workflow";
 import { listAddedSkills, type Skill } from "@/services/api/skills";
+import { directCanvasAssistantImageUrl } from "@/lib/canvas/canvas-assistant-reference";
 
 export const CANVAS_AGENT_PANEL_MOTION_MS = 500;
 const PANEL_MOTION_SECONDS = CANVAS_AGENT_PANEL_MOTION_MS / 1000;
@@ -1927,7 +1928,7 @@ async function buildToolAgentMessages(snapshot: CanvasAgentSnapshot, history: Ca
             content: [
                 ...refs.flatMap((item) => (item.text ? [{ type: "text" as const, text: `选中节点 ${item.title}：${item.text}` }] : [])),
                 { type: "text", text: `当前画布：${JSON.stringify(compactSnapshot(snapshot))}\n\n用户需求：${userMessage.text}` },
-                ...(await Promise.all(refs.filter((item) => item.dataUrl).map(async (item) => ({ type: "image_url" as const, image_url: { url: await imageToDataUrl(item) } })))),
+                ...(await Promise.all(refs.filter((item) => item.dataUrl).map(async (item) => ({ type: "image_url" as const, image_url: { url: directCanvasAssistantImageUrl(item) || (await imageToDataUrl(item)) } })))),
             ],
         },
     ];
