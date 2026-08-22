@@ -6031,6 +6031,10 @@
         box-shadow: none;
     }
 
+    [data-node-dragging="true"] :where(.canvas-node-shell, .canvas-frame-shell) {
+        transition: none !important;
+    }
+
     .canvas-node-inline-action {
         border: 0;
         border-radius: var(--r-md);

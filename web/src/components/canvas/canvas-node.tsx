@@ -254,12 +254,15 @@ export const CanvasNode = React.memo(function CanvasNode({
     return (
         <div
             data-node-id={data.id}
+            data-node-dragging={dragOffset ? "true" : undefined}
             className={`node-element absolute flex select-none flex-col ${dragOffset ? "cursor-grabbing" : data.type === CanvasNodeType.Drawing ? "cursor-pointer" : "cursor-default"} ${isSelected ? "z-[var(--z-node-active)]" : "z-[var(--z-node)]"}`}
             style={{
-                transform: `translate(${data.position.x + (dragOffset?.x || 0)}px, ${data.position.y + (dragOffset?.y || 0)}px)`,
+                transform: `translate3d(${data.position.x + (dragOffset?.x || 0)}px, ${data.position.y + (dragOffset?.y || 0)}px, 0)`,
                 width: data.width,
                 height: data.height,
                 contain: "layout style",
+                willChange: dragOffset ? "transform" : undefined,
+                WebkitBackfaceVisibility: dragOffset ? "hidden" : undefined,
             }}
             onMouseEnter={() => {
                 setHovered(true);

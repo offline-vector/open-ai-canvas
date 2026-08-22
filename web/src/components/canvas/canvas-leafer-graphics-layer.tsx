@@ -37,6 +37,7 @@ type LeaferScene = {
 
 type UnderlayScene = LeaferScene & {
     connections: Group;
+    connectionPaths: Map<string, Path>;
 };
 
 type OverlayScene = LeaferScene & {
@@ -121,7 +122,7 @@ export function CanvasLeaferGraphicsLayer(props: CanvasLeaferGraphicsLayerProps)
     useLayoutEffect(() => {
         const underlay = underlayRef.current;
         if (!underlay) return;
-        rebuildConnections(underlay, props);
+        syncConnections(underlay, props);
     }, [props.displayConnections, props.relatedConnectionIds, props.scriptScrollTopById, props.selectedConnectionId, props.theme]);
 
     useLayoutEffect(() => {
@@ -173,7 +174,7 @@ function createUnderlayScene(host: HTMLDivElement): UnderlayScene {
     const connections = new Group({ hittable: false });
     world.add(connections);
     leafer.add(world);
-    return { leafer, world, host, connections };
+    return { leafer, world, host, connections, connectionPaths: new Map() };
 }
 
 function createOverlayScene(host: HTMLDivElement): OverlayScene {
@@ -193,11 +194,18 @@ function createOverlayScene(host: HTMLDivElement): OverlayScene {
     return { leafer, world, host, selection, selectionBounds, guides, draft, batchDrafts };
 }
 
-function rebuildConnections(scene: UnderlayScene, props: CanvasLeaferGraphicsLayerProps) {
-    scene.connections.removeAll(true);
+function syncConnections(scene: UnderlayScene, props: CanvasLeaferGraphicsLayerProps) {
+    const visibleConnectionIds = new Set<string>();
     props.displayConnections.forEach(({ connection, from, to }) => {
+        visibleConnectionIds.add(connection.id);
         const emphasized = props.selectedConnectionId === connection.id || props.relatedConnectionIds.has(connection.id);
-        const path = new Path({
+        let path = scene.connectionPaths.get(connection.id);
+        if (!path) {
+            path = new Path({ hittable: false });
+            scene.connectionPaths.set(connection.id, path);
+            scene.connections.add(path);
+        }
+        path.set({
             path: canvasConnectionPath(connection, from, to, props.scriptScrollTopById[from.id] || 0, props.scriptScrollTopById[to.id] || 0).pathD,
             stroke: emphasized ? props.theme.accent.primary : props.theme.node.muted,
             strokeWidth: emphasized ? 1.6 : 1,
@@ -206,8 +214,13 @@ function rebuildConnections(scene: UnderlayScene, props: CanvasLeaferGraphicsLay
             opacity: emphasized ? 0.52 : 0.24,
             hittable: false,
         });
-        scene.connections.add(path);
     });
+
+    for (const [connectionId, path] of scene.connectionPaths) {
+        if (visibleConnectionIds.has(connectionId)) continue;
+        scene.connections.remove(path, true);
+        scene.connectionPaths.delete(connectionId);
+    }
 }
 
 function syncOverlayContent(scene: OverlayScene, props: CanvasLeaferGraphicsLayerProps, viewportScale: number) {

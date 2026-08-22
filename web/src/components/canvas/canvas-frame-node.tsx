@@ -144,8 +144,16 @@ export const CanvasFrameNode = React.memo(function CanvasFrameNode({
     return (
         <div
             data-node-id={data.id}
+            data-node-dragging={dragOffset ? "true" : undefined}
             className={`absolute z-0 select-none ${dragOffset ? "cursor-grabbing" : "cursor-default"}`}
-            style={{ transform: `translate(${data.position.x + (dragOffset?.x || 0)}px, ${data.position.y + (dragOffset?.y || 0)}px)`, width: data.width, height: data.height, contain: "layout style" }}
+            style={{
+                transform: `translate3d(${data.position.x + (dragOffset?.x || 0)}px, ${data.position.y + (dragOffset?.y || 0)}px, 0)`,
+                width: data.width,
+                height: data.height,
+                contain: "layout style",
+                willChange: dragOffset ? "transform" : undefined,
+                WebkitBackfaceVisibility: dragOffset ? "hidden" : undefined,
+            }}
             onMouseDown={(event) => onMouseDown(event, data.id)}
             onDoubleClick={(event) => {
                 if (!collapsed || (event.target instanceof Element && event.target.closest("button,input"))) return;
