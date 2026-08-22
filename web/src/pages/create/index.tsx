@@ -12,6 +12,7 @@ import { CachedResourceImage } from "@/components/cached-resource-image";
 import { CanvasResourceMentionTextarea } from "@/components/canvas/canvas-resource-mention-textarea";
 import { CanvasPromptOptimizerDrawer } from "@/components/canvas/canvas-prompt-optimizer-drawer";
 import { VoiceRecordingButton } from "@/components/conversation/voice-recording-button";
+import { productConfig } from "@/config/product";
 import { ModelPicker } from "@/components/model-picker";
 import { CreditSymbol, requestCreditCost } from "@/constant/credits";
 import { creationCanvasHandoffPath, creationResultAssetIds } from "@/lib/canvas/canvas-asset-handoff";
@@ -152,7 +153,7 @@ export default function CreatePage() {
     const [activeId, setActiveId] = useState("");
     const activeIdRef = useRef("");
     const [hydrated, setHydrated] = useState(false);
-    const [mode, setMode] = useState<CreationMode>("video");
+    const [mode, setMode] = useState<CreationMode>(productConfig.guestWorkspace ? "image" : "video");
     const [prompt, setPrompt] = useState("");
     const [attachments, setAttachments] = useState<CreationAttachment[]>([]);
     const promptRef = useRef(prompt);
@@ -229,14 +230,14 @@ export default function CreatePage() {
         if (mode !== "image") return;
         // 前台逻辑模型的默认参数优先于旧的全局创作参数；否则旧的合法值会一直覆盖后台刚配置的默认值。
         const normalized = normalizeImageValue(imageProfile, {
-            size: imageProfile.size.default,
+            size: productConfig.guestWorkspace ? config.size : imageProfile.size.default,
             quality: imageProfile.quality.default,
             count,
         });
         setRatio(normalized.size);
         setQuality(normalized.quality);
         setCount(normalized.count);
-    }, [mode, selectedModel, imageProfile]);
+    }, [config.size, count, imageProfile, mode, selectedModel]);
 
     useEffect(() => {
         if (mode !== "video") return;

@@ -28,6 +28,13 @@ describe("creation library button", () => {
         expect(source).toContain("canvas-node-composer-submit-cost");
     });
 
+    test("starts guest workspaces in image mode while preserving the upstream video default", () => {
+        const source = readFileSync(resolve(import.meta.dir, "../src/pages/create/index.tsx"), "utf8");
+
+        expect(source).toContain('useState<CreationMode>(productConfig.guestWorkspace ? "image" : "video")');
+        expect(source).toContain("size: productConfig.guestWorkspace ? config.size : imageProfile.size.default");
+    });
+
     test("uploads from the library without adding a reference before confirmation", () => {
         const source = readFileSync(resolve(import.meta.dir, "../src/pages/create/index.tsx"), "utf8");
         const pickerSource = readFileSync(resolve(import.meta.dir, "../src/components/assets/asset-library-picker-modal.tsx"), "utf8");

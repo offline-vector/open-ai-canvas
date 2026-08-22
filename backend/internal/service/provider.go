@@ -1521,6 +1521,9 @@ func runImageTask(ctx context.Context, input canvasGenerationInput) (map[string]
 		return runVolcengineArkImageTask(ctx, input)
 	}
 	if input.Config.InterfaceType == string(model.ChannelInterfaceGeminiImage) {
+		if GeneratedMediaRemoteOnly() {
+			return nil, errors.New("Gemini Images 只返回内联图片，当前 Studio 不接收或存储媒体文件")
+		}
 		return runGeminiImageTask(ctx, input)
 	}
 	var payload imageResponse
@@ -1540,7 +1543,7 @@ func runImageTask(ctx context.Context, input canvasGenerationInput) (map[string]
 		writeField(writer, "prompt", withSystemPrompt(input.Config, input.Prompt))
 		writeField(writer, "n", "1")
 		if imageParameterSupported(input.ImageCapability, "response_format") {
-			writeField(writer, "response_format", "b64_json")
+			writeField(writer, "response_format", generatedImageResponseFormat())
 		}
 		if imageParameterSupported(input.ImageCapability, "output_format") {
 			writeField(writer, "output_format", "png")
@@ -1554,14 +1557,20 @@ func runImageTask(ctx context.Context, input canvasGenerationInput) (map[string]
 		if key, value := imageSizeParameter(input.ImageCapability, input.Config.Size); value != "" {
 			writeField(writer, key, value)
 		}
-		for _, image := range input.ReferenceImages {
-			if err := writeMediaPart(writer, "image", image); err != nil {
+		if GeneratedMediaRemoteOnly() {
+			if err := writeRemoteOnlyImageEditParts(ctx, input.Config, writer, input.ReferenceImages, input.Mask); err != nil {
 				return nil, err
 			}
-		}
-		if input.Mask != nil {
-			if err := writeMediaPart(writer, "mask", *input.Mask); err != nil {
-				return nil, err
+		} else {
+			for _, image := range input.ReferenceImages {
+				if err := writeMediaPart(writer, "image", image); err != nil {
+					return nil, err
+				}
+			}
+			if input.Mask != nil {
+				if err := writeMediaPart(writer, "mask", *input.Mask); err != nil {
+					return nil, err
+				}
 			}
 		}
 		if err := writer.Close(); err != nil {
@@ -1577,7 +1586,7 @@ func runImageTask(ctx context.Context, input canvasGenerationInput) (map[string]
 			"n":      1,
 		}
 		if imageParameterSupported(input.ImageCapability, "response_format") {
-			body["response_format"] = "b64_json"
+			body["response_format"] = generatedImageResponseFormat()
 		}
 		if imageParameterSupported(input.ImageCapability, "output_format") {
 			body["output_format"] = "png"
@@ -1599,7 +1608,40 @@ func runImageTask(ctx context.Context, input canvasGenerationInput) (map[string]
 	if err != nil {
 		return nil, err
 	}
+	if GeneratedMediaRemoteOnly() {
+		if err := requireRemoteGeneratedImages(images); err != nil {
+			return nil, err
+		}
+	}
 	return map[string]interface{}{"mode": "image", "images": images}, nil
+}
+
+func generatedImageResponseFormat() string {
+	if GeneratedMediaRemoteOnly() {
+		return "url"
+	}
+	return "b64_json"
+}
+
+func requireRemoteGeneratedImages(images []map[string]string) error {
+	for _, image := range images {
+		if !isBrowserMediaURL(strings.TrimSpace(image["dataUrl"])) {
+			return errors.New("当前 Studio 不接收或存储图片；上游必须返回可由浏览器直接访问的 HTTPS URL")
+		}
+	}
+	return nil
+}
+
+func remoteGeneratedMediaResult(mode string, rawURL string, mimeType string) (map[string]interface{}, error) {
+	rawURL = strings.TrimSpace(rawURL)
+	if !isBrowserMediaURL(rawURL) {
+		return nil, fmt.Errorf("当前 Studio 不接收或存储%s；上游必须返回可由浏览器直接访问的 HTTPS URL", map[string]string{"image": "图片", "video": "视频", "audio": "音频"}[mode])
+	}
+	media := map[string]interface{}{"dataUrl": rawURL}
+	if mimeType != "" {
+		media["mimeType"] = mimeType
+	}
+	return map[string]interface{}{"mode": mode, mode: media}, nil
 }
 
 func runGeminiImageTask(ctx context.Context, input canvasGenerationInput) (map[string]interface{}, error) {
@@ -1752,6 +1794,11 @@ func runGrokImageTask(ctx context.Context, input canvasGenerationInput) (map[str
 	if err != nil {
 		return nil, err
 	}
+	if GeneratedMediaRemoteOnly() {
+		if err := requireRemoteGeneratedImages(images); err != nil {
+			return nil, err
+		}
+	}
 	return map[string]interface{}{"mode": "image", "images": images}, nil
 }
 
@@ -1886,6 +1933,12 @@ func volcengineArkImageDataURLs(ctx context.Context, config providerConfig, payl
 	if err != nil {
 		return nil, err
 	}
+	if GeneratedMediaRemoteOnly() {
+		if err := requireRemoteGeneratedImages(images); err != nil {
+			return nil, err
+		}
+		return images, nil
+	}
 	for _, image := range images {
 		value := strings.TrimSpace(image["dataUrl"])
 		if strings.HasPrefix(value, "data:image/") {
@@ -1916,7 +1969,7 @@ func volcengineArkImageBody(input canvasGenerationInput) (map[string]interface{}
 		"model":           input.Config.Model,
 		"prompt":          withSystemPrompt(input.Config, input.Prompt),
 		"n":               1,
-		"response_format": "b64_json",
+		"response_format": generatedImageResponseFormat(),
 		"watermark":       false,
 	}
 	if key, value := imageSizeParameter(input.ImageCapability, input.Config.Size); value != "" {
@@ -2274,6 +2327,9 @@ func runAudioTask(ctx context.Context, input canvasGenerationInput) (map[string]
 	}
 	if input.Config.InterfaceType == string(model.ChannelInterfaceAsyncAudio) {
 		return runAsyncAudioTask(ctx, input, body, format)
+	}
+	if GeneratedMediaRemoteOnly() {
+		return nil, errors.New("当前音频协议只返回文件流；S1API Studio 不接收或存储媒体文件，请改用返回 HTTPS URL 的异步音频渠道")
 	}
 	data, mimeType, err := postBinary(ctx, input.Config, "/audio/speech", body)
 	if err != nil {
@@ -3170,6 +3226,14 @@ func asyncAudioSucceeded(state map[string]interface{}) bool {
 
 func asyncAudioResult(ctx context.Context, config providerConfig, id string, state map[string]interface{}, format string) (map[string]interface{}, error) {
 	resultURL := asyncAudioResultURL(state)
+	if GeneratedMediaRemoteOnly() {
+		result, err := remoteGeneratedMediaResult("audio", resultURL, audioFormatMimeType(format))
+		if err != nil {
+			return nil, fmt.Errorf("异步音频任务 %s 已完成但不能直返浏览器：%w", id, err)
+		}
+		result["audio"].(map[string]interface{})["format"] = format
+		return result, nil
+	}
 	var data []byte
 	var mimeType string
 	var err error
@@ -3418,6 +3482,9 @@ func runVideoTask(ctx context.Context, input canvasGenerationInput) (map[string]
 		status := strings.ToLower(stringField(state, "status"))
 		if status == "completed" || status == "succeeded" || status == "success" || status == "done" {
 			if videoURL := newAPIVideoResultURL(state); videoURL != "" {
+				if GeneratedMediaRemoteOnly() {
+					return remoteGeneratedMediaResult("video", videoURL, "video/mp4")
+				}
 				if input.Config.InterfaceType == "xai-video" {
 					if _, validationErr := ValidateOutboundURL(videoURL); validationErr != nil {
 						data, mimeType, err := getBinary(ctx, input.Config, "/videos/"+id+"/content")
@@ -3434,6 +3501,9 @@ func runVideoTask(ctx context.Context, input canvasGenerationInput) (map[string]
 				}
 				mimeType = normalizedMediaMimeType(mimeType, data)
 				return map[string]interface{}{"mode": "video", "video": map[string]interface{}{"dataUrl": dataURL(mimeType, data), "mimeType": mimeType}}, nil
+			}
+			if GeneratedMediaRemoteOnly() {
+				return nil, errors.New("视频任务已完成但上游没有返回可由浏览器直接访问的 HTTPS URL")
 			}
 			data, mimeType, err := getBinary(ctx, input.Config, "/videos/"+id+"/content")
 			if err != nil {
@@ -3652,6 +3722,9 @@ func runGeminiVeoVideoTask(ctx context.Context, input canvasGenerationInput) (ma
 			if videoURL == "" {
 				return nil, fmt.Errorf("Gemini Veo 任务 %s 已完成但没有返回视频地址", id)
 			}
+			if GeneratedMediaRemoteOnly() {
+				return remoteGeneratedMediaResult("video", videoURL, "video/mp4")
+			}
 			data, mimeType, err := getGeminiBinary(withProviderRequestKind(ctx, "download"), input.Config, videoURL)
 			if err != nil {
 				return nil, fmt.Errorf("Gemini Veo 视频下载失败（任务 %s）：%w", id, err)
@@ -3714,6 +3787,9 @@ func runNovitaVideoTask(ctx context.Context, input canvasGenerationInput) (map[s
 			videoURL := strings.TrimSpace(stringField(first, "video_url"))
 			if videoURL == "" {
 				return nil, fmt.Errorf("Novita 视频任务 %s 已完成但没有返回视频地址", id)
+			}
+			if GeneratedMediaRemoteOnly() {
+				return remoteGeneratedMediaResult("video", videoURL, "video/mp4")
 			}
 			data, mimeType, err := getExternalBinary(withProviderRequestKind(ctx, "download"), videoURL)
 			if err != nil {
@@ -3961,6 +4037,10 @@ func queryNewAPIChannel2VideoTask(ctx context.Context, input canvasGenerationInp
 		if videoURL == "" {
 			return nil, status, fmt.Errorf("NewAPI Video Generations 任务 %s 已成功但没有返回视频地址", id)
 		}
+		if GeneratedMediaRemoteOnly() {
+			result, err := remoteGeneratedMediaResult("video", videoURL, "video/mp4")
+			return result, status, err
+		}
 		data, mimeType, err := getProviderExternalBinary(withProviderRequestKind(ctx, "download"), input.Config, videoURL)
 		if err != nil {
 			return nil, status, fmt.Errorf("NewAPI Video Generations 视频结果下载失败（任务 %s）：%w", id, err)
@@ -4207,6 +4287,9 @@ func runNewAPIChannel1VideoTask(ctx context.Context, input canvasGenerationInput
 			videoURL := stringField(state, "object")
 			if videoURL == "" {
 				return nil, fmt.Errorf("NewAPI 媒体任务 %s 已完成但没有返回视频 URL", id)
+			}
+			if GeneratedMediaRemoteOnly() {
+				return remoteGeneratedMediaResult("video", videoURL, "video/mp4")
 			}
 			data, mimeType, err := getExternalBinary(withProviderRequestKind(ctx, "download"), videoURL)
 			if err != nil {
@@ -4466,11 +4549,17 @@ func runSeedanceVideosTask(ctx context.Context, input canvasGenerationInput) (ma
 		if status == "completed" || status == "succeeded" {
 			videoURL := stringField(state, "video_url")
 			if videoURL != "" {
+				if GeneratedMediaRemoteOnly() {
+					return remoteGeneratedMediaResult("video", videoURL, "video/mp4")
+				}
 				data, mimeType, err := getExternalBinary(withProviderRequestKind(ctx, "download"), videoURL)
 				if err != nil {
 					return nil, fmt.Errorf("视频结果下载失败：%w", err)
 				}
 				return map[string]interface{}{"mode": "video", "video": map[string]interface{}{"dataUrl": dataURL(mimeType, data), "mimeType": mimeType}}, nil
+			}
+			if GeneratedMediaRemoteOnly() {
+				return nil, errors.New("Seedance 任务成功但没有返回可由浏览器直接访问的 HTTPS URL")
 			}
 			data, mimeType, err := getBinary(ctx, input.Config, "/videos/"+id+"/content")
 			if err != nil {
@@ -4547,6 +4636,9 @@ func runSeedanceAgentPlanVideoTask(ctx context.Context, input canvasGenerationIn
 			videoURL := stringField(content, "video_url")
 			if videoURL == "" {
 				return nil, fmt.Errorf("%s任务成功但没有返回视频 URL", providerName)
+			}
+			if GeneratedMediaRemoteOnly() {
+				return remoteGeneratedMediaResult("video", videoURL, "video/mp4")
 			}
 			data, mimeType, err := getExternalBinary(withProviderRequestKind(ctx, "download"), videoURL)
 			if err != nil {
@@ -5322,6 +5414,10 @@ func writeMediaPart(writer *multipart.Writer, field string, media providerMedia)
 	if err != nil {
 		return err
 	}
+	return writeMediaPartBytes(writer, field, media, raw, mimeType)
+}
+
+func writeMediaPartBytes(writer *multipart.Writer, field string, media providerMedia, raw []byte, mimeType string) error {
 	filename := providerMediaFilename(media, mimeType)
 	header := make(textproto.MIMEHeader)
 	header.Set("Content-Disposition", mime.FormatMediaType("form-data", map[string]string{"name": field, "filename": filename}))

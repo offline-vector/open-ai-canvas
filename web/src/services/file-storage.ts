@@ -1,6 +1,7 @@
 import localforage from "localforage";
 import { nanoid } from "nanoid";
 
+import { shouldKeepGeneratedMediaRemote } from "@/lib/generated-media-policy";
 import { getActiveUserScope } from "@/lib/user-scope";
 import { captureVideoPoster, detectVideoAudioTrackFromBlob } from "@/lib/video-poster";
 import { resourceFileUrl, resourceIdFromStorageKey, resourceStorageKey, uploadResourceFile } from "@/services/api/resources";
@@ -13,6 +14,11 @@ const store = localforage.createInstance({ name: "infinite-canvas", storeName: "
 const objectUrls = new Map<string, string>();
 
 export async function uploadMediaFile(input: string | Blob, prefix = "file"): Promise<UploadedFile> {
+    if (typeof input === "string" && shouldKeepGeneratedMediaRemote(input)) {
+        const kind = prefix === "video" ? "video" : prefix === "audio" ? "audio" : "file";
+        const meta = kind === "video" ? await readVideoMeta(input) : kind === "audio" ? await readAudioMeta(input) : {};
+        return { url: input, storageKey: "", bytes: 0, mimeType: kind === "video" ? "video/mp4" : kind === "audio" ? "audio/mpeg" : "application/octet-stream", ...meta };
+    }
     // 直传和失败后的本地同步必须复用同一上传身份，避免响应丢失后创建第二个对象。
     const storageKey = `${prefix}:${getActiveUserScope()}:${nanoid()}`;
     const blob = typeof input === "string" ? await (await fetch(input)).blob() : input;

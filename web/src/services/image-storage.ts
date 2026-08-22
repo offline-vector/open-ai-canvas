@@ -1,6 +1,7 @@
 import localforage from "localforage";
 
 import { nanoid } from "nanoid";
+import { shouldKeepGeneratedMediaRemote } from "@/lib/generated-media-policy";
 import { readImageMeta } from "@/lib/image-utils";
 import { getActiveUserScope } from "@/lib/user-scope";
 import { importResourceFromUrl, isResourceUrl, resourceFileUrl, resourceIdFromStorageKey, resourceStorageKey, uploadResourceFile } from "@/services/api/resources";
@@ -19,6 +20,10 @@ const store = localforage.createInstance({ name: "infinite-canvas", storeName: "
 const objectUrls = new Map<string, string>();
 
 export async function uploadImage(input: string | Blob): Promise<UploadedImage> {
+    if (typeof input === "string" && shouldKeepGeneratedMediaRemote(input)) {
+        const meta = await readImageMeta(input);
+        return { url: input, storageKey: "", width: meta.width, height: meta.height, bytes: 0, mimeType: meta.mimeType };
+    }
     // 同一个逻辑上传在直传失败后会退回 IndexedDB，并由云端数据同步再次提交。
     // 提前生成本地 key，确保两条路径向后端发送相同的幂等标识。
     const storageKey = `image:${getActiveUserScope()}:${nanoid()}`;
