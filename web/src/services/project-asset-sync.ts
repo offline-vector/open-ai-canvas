@@ -1,4 +1,5 @@
 import { canvasNodeToAsset, declaredCanvasNodeAssetCategory, findCanvasNodeAsset, type CanvasAssetSource } from "@/lib/canvas/canvas-node-asset";
+import { shouldKeepGeneratedMediaRemote } from "@/lib/generated-media-policy";
 import { readImageMeta } from "@/lib/image-utils";
 import { parseBackendGenerationResult, type BackendGenerationResult } from "@/services/api/generation-task";
 import { linkProjectAsset, updateProjectAssetCategory } from "@/services/api/projects";
@@ -145,6 +146,18 @@ export function projectGenerationTaskResult(task: GenerationTask, result?: Backe
 
 async function storedGenerationImage(result: NonNullable<BackendGenerationResult["images"]>[number], effectKey: string, scope: string, signal?: AbortSignal) {
     throwIfAborted(signal);
+    if (!result.storageKey && shouldKeepGeneratedMediaRemote(result.dataUrl)) {
+        const meta = result.width && result.height ? undefined : await readImageMeta(result.dataUrl, signal);
+        throwIfAborted(signal);
+        return {
+            url: result.dataUrl,
+            storageKey: undefined,
+            width: result.width || meta?.width || 1024,
+            height: result.height || meta?.height || 1024,
+            bytes: result.bytes || 0,
+            mimeType: result.mimeType || meta?.mimeType || "image/png",
+        };
+    }
     if (result.storageKey) {
         const url = await resolveImageUrl(result.storageKey, result.dataUrl);
         if (!url) throw new Error("图片结果资源不可用");
@@ -186,6 +199,17 @@ async function storedGenerationImage(result: NonNullable<BackendGenerationResult
 
 async function storedGenerationMedia(dataUrl: string, effectKey: string, mediaType: "video" | "audio", metadata: { width?: number; height?: number; durationMs?: number; bytes?: number; mimeType: string }, scope: string, signal?: AbortSignal) {
     throwIfAborted(signal);
+    if (shouldKeepGeneratedMediaRemote(dataUrl)) {
+        return {
+            url: dataUrl,
+            storageKey: undefined,
+            width: metadata.width,
+            height: metadata.height,
+            durationMs: metadata.durationMs,
+            bytes: metadata.bytes || 0,
+            mimeType: metadata.mimeType,
+        };
+    }
     const storageKey = generationArtifactStorageKey(effectKey, mediaType, scope);
     const blob = await loadOrStoreGenerationArtifact({
         effectKey: storageKey,

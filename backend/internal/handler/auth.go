@@ -29,6 +29,10 @@ func RegisterAuthRoutes(r *gin.RouterGroup, svc *service.Service) {
 		ok(c, settings)
 	})
 	r.POST("/auth/register", func(c *gin.Context) {
+		if service.GuestWorkspaceEnabled() {
+			c.Status(http.StatusNotFound)
+			return
+		}
 		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 64<<10)
 		var req service.RegisterRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -48,6 +52,10 @@ func RegisterAuthRoutes(r *gin.RouterGroup, svc *service.Service) {
 		ok(c, gin.H{"user": result.User})
 	})
 	r.POST("/auth/email-code", func(c *gin.Context) {
+		if service.GuestWorkspaceEnabled() {
+			c.Status(http.StatusNotFound)
+			return
+		}
 		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 16<<10)
 		var req struct {
 			Email string `json:"email"`
@@ -67,6 +75,10 @@ func RegisterAuthRoutes(r *gin.RouterGroup, svc *service.Service) {
 		ok(c, gin.H{"sent": true})
 	})
 	r.POST("/auth/login", func(c *gin.Context) {
+		if service.GuestWorkspaceEnabled() {
+			c.Status(http.StatusNotFound)
+			return
+		}
 		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 64<<10)
 		var req service.LoginRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -929,7 +941,31 @@ func readPayloadModel(body []byte) string {
 }
 
 func currentUser(c *gin.Context, svc *service.Service) (*model.User, error) {
+	if service.GuestWorkspaceEnabled() {
+		cookieValue, _ := c.Cookie(service.BrowserWorkspaceCookieName)
+		user, workspaceID, shouldSetCookie, err := svc.BrowserWorkspace(cookieValue)
+		if err != nil {
+			return nil, err
+		}
+		if shouldSetCookie {
+			setBrowserWorkspaceCookie(c, workspaceID)
+		}
+		return user, nil
+	}
 	return svc.CurrentUser(sessionCookie(c))
+}
+
+func setBrowserWorkspaceCookie(c *gin.Context, value string) {
+	secure := c.Request.TLS != nil || strings.EqualFold(strings.TrimSpace(c.GetHeader("X-Forwarded-Proto")), "https")
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     service.BrowserWorkspaceCookieName,
+		Value:    value,
+		Path:     "/",
+		MaxAge:   365 * 24 * 60 * 60,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   secure,
+	})
 }
 
 func sessionCookie(c *gin.Context) string {

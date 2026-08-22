@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
 import { UserOSSSettingsForm } from "@/components/layout/user-oss-settings-form";
+import { productConfig } from "@/config/product";
 import { audioFormatOptions, audioVoiceOptions, normalizeAudioSpeedValue } from "@/lib/audio-generation";
 import { refreshSystemChannels } from "@/lib/user-session";
 import { defaultConfig, useConfigStore, useEffectiveConfig } from "@/stores/use-config-store";
@@ -35,7 +36,8 @@ export default function SettingsPage() {
     const [searchParams, setSearchParams] = useSearchParams();
     const requestedSection = searchParams.get("section");
     const customChannelsEnabled = useUserStore((state) => state.features.customChannelsEnabled);
-    const initialSection = isConfigSection(requestedSection) ? requestedSection : customChannelsEnabled ? "channels" : "models";
+    const requestedSectionVisible = isConfigSection(requestedSection) && !(productConfig.guestWorkspace && requestedSection === "storage");
+    const initialSection = requestedSectionVisible ? requestedSection : customChannelsEnabled ? "channels" : "models";
     const [activeTab, setActiveTab] = useState<ConfigSectionKey>(initialSection === "channels" && !customChannelsEnabled ? "models" : initialSection);
     const config = useConfigStore((state) => state.config);
     const effectiveConfig = useEffectiveConfig();
@@ -43,10 +45,14 @@ export default function SettingsPage() {
     const shouldPromptContinue = searchParams.get("continue") === "1";
     const userId = useUserStore((state) => state.user?.id);
     const userChannels = config.channels.filter((channel) => channel.scope !== "system");
-    const visibleConfigSections = customChannelsEnabled ? configSections : configSections.filter((section) => section.key !== "channels");
+    const visibleConfigSections = configSections.filter((section) => {
+        if (!customChannelsEnabled && section.key === "channels") return false;
+        if (productConfig.guestWorkspace && section.key === "storage") return false;
+        return true;
+    });
 
     useEffect(() => {
-        if (isConfigSection(requestedSection) && (requestedSection !== "channels" || customChannelsEnabled)) {
+        if (isConfigSection(requestedSection) && !(productConfig.guestWorkspace && requestedSection === "storage") && (requestedSection !== "channels" || customChannelsEnabled)) {
             setActiveTab(requestedSection);
             return;
         }

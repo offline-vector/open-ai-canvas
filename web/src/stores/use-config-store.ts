@@ -12,6 +12,7 @@ import { useLocalDreaminaModelStore } from "@/stores/use-local-dreamina-model-st
 import { useUserStore } from "@/stores/use-user-store";
 import type { DreaminaLocalModel } from "@/services/local-dreamina-model-catalog";
 import type { CapabilitySpec } from "@/services/api/logical-models";
+import { productConfig } from "@/config/product";
 
 export type ApiCallFormat = "openai" | "gemini";
 export type ChannelInterfaceType = ModelProtocol;
@@ -94,19 +95,27 @@ export type AiConfig = {
 export const CONFIG_STORE_KEY = "open_ai_canvas:ai_config_store";
 export type ModelCapability = "image" | "video" | "text" | "audio";
 const CHANNEL_MODEL_SEPARATOR = "::";
-const OPENAI_BASE_URL = "https://api.openai.com";
+const DEFAULT_OPENAI_BASE_URL = productConfig.defaultApiBaseUrl;
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com";
 const LEGACY_DEFAULT_MODEL_NAMES = new Set(["gpt-image-2", "grok-imagine-video", "gpt-5.5", "gpt-4o-mini-tts"]);
 
 export const defaultConfig: AiConfig = {
     channelMode: "local",
-    baseUrl: OPENAI_BASE_URL,
+    baseUrl: DEFAULT_OPENAI_BASE_URL,
     apiKey: "",
     apiFormat: "openai",
-    // 创作端模型目录只能来自后台公开逻辑模型和用户自定义渠道，不能内置供应商模型。
-    channels: [],
-    model: "",
-    imageModel: "",
+    channels: [
+        {
+            id: "default",
+            name: "S1API",
+            baseUrl: DEFAULT_OPENAI_BASE_URL,
+            apiKey: "",
+            apiFormat: "openai",
+            models: ["gpt-image-2"],
+        },
+    ],
+    model: "default::gpt-image-2",
+    imageModel: "default::gpt-image-2",
     videoModel: "",
     textModel: "",
     audioModel: "",
@@ -119,13 +128,13 @@ export const defaultConfig: AiConfig = {
     videoGenerateAudio: "true",
     videoWatermark: "false",
     systemPrompt: "",
-    models: [],
-    imageModels: [],
+    models: ["default::gpt-image-2"],
+    imageModels: ["default::gpt-image-2"],
     videoModels: [],
     textModels: [],
     audioModels: [],
     quality: "auto",
-    size: "1:1",
+    size: "auto",
     transparentBackground: "false",
     count: "1",
     canvasImageCount: "1",
@@ -548,6 +557,7 @@ function isEmptyDefaultChannel(channel: ModelChannel) {
     if (channel.scope === "system") return false;
     if (channel.id !== "default" || channel.name.trim() !== "默认渠道" || channel.apiKey.trim()) return false;
     const baseUrl = channel.baseUrl.trim().replace(/\/+$/, "");
+    if (baseUrl === DEFAULT_OPENAI_BASE_URL.replace(/\/+$/, "")) return false;
     const defaultBaseUrl = defaultConfig.baseUrl.trim().replace(/\/+$/, "");
     if (baseUrl && baseUrl !== defaultBaseUrl) return false;
     // 只清理旧版本写入浏览器的无密钥“默认渠道”和内置模型；没有 API Key 但已填写自定义模型时仍保留，
@@ -556,7 +566,7 @@ function isEmptyDefaultChannel(channel: ModelChannel) {
 }
 
 export function defaultBaseUrlForApiFormat(apiFormat: ApiCallFormat) {
-    return apiFormat === "gemini" ? GEMINI_BASE_URL : OPENAI_BASE_URL;
+    return apiFormat === "gemini" ? GEMINI_BASE_URL : DEFAULT_OPENAI_BASE_URL;
 }
 
 export function defaultBaseUrlForChannelInterface(interfaceType?: ChannelInterfaceType) {
@@ -564,8 +574,8 @@ export function defaultBaseUrlForChannelInterface(interfaceType?: ChannelInterfa
     if (interfaceType === "novita-video") return "https://api.novita.ai/v3";
     if (interfaceType === "volcengine-ark-image" || interfaceType === "volcengine-ark-video") return "https://ark.cn-beijing.volces.com/api/v3";
     if (interfaceType === "volcengine-jimeng-image" || interfaceType === "volcengine-jimeng-video") return "https://visual.volcengineapi.com";
-    if (interfaceType === "grok-image" || interfaceType === "newapi" || interfaceType === "newapi-channel-1" || interfaceType === "newapi-channel-2" || interfaceType === "xai-video") return "";
-    return OPENAI_BASE_URL;
+    if (interfaceType === "grok-image" || interfaceType === "newapi" || interfaceType === "newapi-channel-1" || interfaceType === "newapi-channel-2" || interfaceType === "xai-video") return DEFAULT_OPENAI_BASE_URL;
+    return DEFAULT_OPENAI_BASE_URL;
 }
 
 function capabilityForChannelInterface(interfaceType?: ChannelInterfaceType): ModelCapability | undefined {

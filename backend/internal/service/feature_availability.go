@@ -45,6 +45,10 @@ func (s *Service) FeatureAvailability() (*PublicFeatureAvailability, error) {
 	if err != nil {
 		return nil, err
 	}
+	if GuestWorkspaceEnabled() {
+		value.CreditsEnabled = false
+		value.CustomChannelsEnabled = true
+	}
 	return s.withRuntimeCapabilities(publicFeatureAvailability(setting, value)), nil
 }
 

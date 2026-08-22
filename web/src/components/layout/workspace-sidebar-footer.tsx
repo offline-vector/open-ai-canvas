@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { logout } from "@/services/api/auth";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore, type LocalUser } from "@/stores/use-user-store";
+import { productConfig } from "@/config/product";
 
 type WorkspaceSidebarFooterProps = {
     expandedClassName: string;
@@ -90,7 +91,7 @@ export function WorkspaceSidebarFooter({ expandedClassName, collapsedClassName, 
                                 <span className="ml-2 flex-1 text-xs text-foreground/65">深色模式</span>
                                 <Switch size="small" checked={theme === "dark"} onChange={(checked) => setTheme(checked ? "dark" : "light")} aria-label="深色模式" />
                             </div>
-                            <button type="button" className="flex h-9 w-full items-center gap-2 rounded px-2 text-xs text-foreground/55 hover:bg-surface-hover hover:text-foreground" onClick={() => void handleLogout()}><LogOut className="size-3.5" />退出登录</button>
+                            {!productConfig.guestWorkspace ? <button type="button" className="flex h-9 w-full items-center gap-2 rounded px-2 text-xs text-foreground/55 hover:bg-surface-hover hover:text-foreground" onClick={() => void handleLogout()}><LogOut className="size-3.5" />退出登录</button> : null}
                         </div>
                     )}
                 >
@@ -98,11 +99,15 @@ export function WorkspaceSidebarFooter({ expandedClassName, collapsedClassName, 
                         <UserAvatar user={user} className="size-7" />
                         <span className={cn("min-w-0 flex-1 flex-col", expandedClassName)}>
                             <span className="truncate text-xs font-medium">{user.displayName || user.username}</span>
-                            {creditsEnabled ? <span className="mt-0.5 block truncate text-[var(--fs-micro)] tabular-nums text-foreground/42">{balance} 积分</span> : null}
+                            {productConfig.guestWorkspace ? <span className="mt-0.5 block truncate text-[var(--fs-micro)] text-foreground/42">无需登录</span> : creditsEnabled ? <span className="mt-0.5 block truncate text-[var(--fs-micro)] tabular-nums text-foreground/42">{balance} 积分</span> : null}
                         </span>
                         <ChevronRight className={cn("size-3.5 shrink-0 text-foreground/30", expandedClassName)} />
                     </button>
                 </Popover>
+            ) : productConfig.guestWorkspace ? (
+                <div className={cn("flex h-10 items-center rounded-md text-xs text-foreground/45", collapsedClassName)} title="正在准备匿名工作区">
+                    <CircleUserRound className="size-4 shrink-0" /><span className={expandedClassName}>正在准备工作区</span>
+                </div>
             ) : (
                 <Link to="/login" className={cn("flex h-10 items-center rounded-md text-xs text-foreground/65 hover:bg-surface-hover hover:text-foreground", collapsedClassName)} title="登录">
                     <LogIn className="size-4 shrink-0" /><span className={expandedClassName}>登录</span>

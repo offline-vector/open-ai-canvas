@@ -9,6 +9,7 @@ import { MessageReasoning } from "@/components/ai/message-reasoning";
 import { AssetLibraryPickerModal, type AssetLibraryPickerItem } from "@/components/assets/asset-library-picker-modal";
 import { CanvasResourceMentionTextarea } from "@/components/canvas/canvas-resource-mention-textarea";
 import { VoiceRecordingButton } from "@/components/conversation/voice-recording-button";
+import { productConfig } from "@/config/product";
 import { ModelPicker } from "@/components/model-picker";
 import { CreditSymbol, requestCreditCost } from "@/constant/credits";
 import { creationCanvasHandoffPath, creationResultAssetIds } from "@/lib/canvas/canvas-asset-handoff";
@@ -133,7 +134,7 @@ export default function CreatePage() {
     const [activeId, setActiveId] = useState("");
     const activeIdRef = useRef("");
     const [hydrated, setHydrated] = useState(false);
-    const [mode, setMode] = useState<CreationMode>("video");
+    const [mode, setMode] = useState<CreationMode>(productConfig.guestWorkspace ? "image" : "video");
     const [prompt, setPrompt] = useState("");
     const [attachments, setAttachments] = useState<CreationAttachment[]>([]);
     const [draftReferences, setDraftReferences] = useState<CreationReference[]>([]);
@@ -198,14 +199,14 @@ export default function CreatePage() {
         if (mode !== "image") return;
         // 前台逻辑模型的默认参数优先于旧的全局创作参数；否则旧的合法值会一直覆盖后台刚配置的默认值。
         const normalized = normalizeImageValue(imageProfile, {
-            size: imageProfile.size.default,
+            size: productConfig.guestWorkspace ? config.size : imageProfile.size.default,
             quality: imageProfile.quality.default,
             count,
         });
         setRatio(normalized.size);
         setQuality(normalized.quality);
         setCount(normalized.count);
-    }, [mode, selectedModel, imageProfile]);
+    }, [config.size, count, imageProfile, mode, selectedModel]);
 
     useEffect(() => {
         if (mode !== "video") return;
@@ -834,8 +835,8 @@ export default function CreatePage() {
                 <CreationEmptyBanner />
                 <div className="creation-chat-intro">
                     <span className="creation-intro-signal" aria-hidden="true" />
-                    <p>影策 · AI 影视创作工作台</p>
-                    <h1>把脑海里的画面，<span className="creation-intro-emphasis"><span className="is-pink">交给影策</span><span className="is-blue">拍出来</span></span></h1>
+                    <p>S1API Studio · AI 视觉创作工作台</p>
+                    <h1>把脑海里的画面，<span className="creation-intro-emphasis"><span className="is-pink">用 S1 Studio</span><span className="is-blue">变成作品</span></span></h1>
                 </div>
                 <div className="creation-empty-composer">
                     <CreationComposer {...composerProps} variant="empty" />
@@ -971,7 +972,7 @@ function CreationMessageView({ item, modelName, onRetryFailure, onCreateVariant,
     if (item.role === "user") return <CreationUserMessage item={item} />;
     const mode = item.mode || "text";
     const stateLabel = item.status === "pending" ? "生成中" : item.status === "cancelled" ? "已停止" : item.status === "error" ? "生成失败" : "";
-    const heading = <><span className="creation-message-mark"><Sparkles /></span><strong>{mode === "image" ? "图像生成" : mode === "video" ? "视频生成" : "影策 AI"}</strong>{mode !== "text" ? <span className="creation-message-progress-copy">{item.status === "pending" ? `影策正在生成${mode === "video" ? "视频" : "图像"}……` : item.status === "done" ? `你的${mode === "video" ? "视频" : "图像"}已创建` : null}</span> : null}{modelName ? <span className="creation-message-model">{modelName}</span> : null}{item.createdAt ? <time dateTime={item.createdAt}>{formatMessageTime(item.createdAt)}</time> : null}{stateLabel ? <span className={`creation-message-state is-${item.status}`}>{stateLabel}</span> : null}</>;
+    const heading = <><span className="creation-message-mark"><Sparkles /></span><strong>{mode === "image" ? "图像生成" : mode === "video" ? "视频生成" : "S1 Studio AI"}</strong>{mode !== "text" ? <span className="creation-message-progress-copy">{item.status === "pending" ? `正在生成${mode === "video" ? "视频" : "图像"}……` : item.status === "done" ? `你的${mode === "video" ? "视频" : "图像"}已创建` : null}</span> : null}{modelName ? <span className="creation-message-model">{modelName}</span> : null}{item.createdAt ? <time dateTime={item.createdAt}>{formatMessageTime(item.createdAt)}</time> : null}{stateLabel ? <span className={`creation-message-state is-${item.status}`}>{stateLabel}</span> : null}</>;
     const toolStatus: GenerationToolStatus = item.status === "pending" ? "running" : item.status === "error" ? "error" : item.status === "cancelled" ? "cancelled" : "completed";
     return <article className={`creation-assistant-message is-${mode}`}>
         {mode === "text" ? <><div className="creation-message-heading">{heading}</div>{item.reasoning ? <MessageReasoning reasoning={item.reasoning} isStreaming={item.status === "streaming"} /> : null}<div className="creation-message-content">{item.content ? <AIMessageMarkdown isStreaming={item.status === "streaming"}>{item.content}</AIMessageMarkdown> : <span>正在生成…</span>}</div></> : <GenerationToolCard status={toolStatus} isBulk={(item.resultUrls?.length || Number(item.settings?.count) || 1) > 1} heading={heading}><MediaResult item={item} onRetryFailure={onRetryFailure} onCreateVariant={onCreateVariant} onCancel={onCancel} /></GenerationToolCard>}
@@ -1017,7 +1018,7 @@ function MediaResult({ item, onRetryFailure, onCreateVariant, onCancel }: { item
 }
 
 function CreationMediaPending({ mode, ratio, onCancel }: { mode: CreationMode; ratio?: string; onCancel?: () => void }) {
-    return <div className={`creation-media-pending is-${mode}`} style={{ aspectRatio: creationMediaAspectRatio(ratio, mode) }} aria-live="polite"><span className="creation-media-pending-icon"><Sparkles /></span><span className="sr-only">影策正在生成{mode === "video" ? "视频" : "图像"}</span>{onCancel ? <button type="button" onClick={onCancel}>取消任务</button> : null}</div>;
+    return <div className={`creation-media-pending is-${mode}`} style={{ aspectRatio: creationMediaAspectRatio(ratio, mode) }} aria-live="polite"><span className="creation-media-pending-icon"><Sparkles /></span><span className="sr-only">正在生成{mode === "video" ? "视频" : "图像"}</span>{onCancel ? <button type="button" onClick={onCancel}>取消任务</button> : null}</div>;
 }
 
 function CreationMessageReferences({ references }: { references: CreationReference[] }) {
@@ -1263,7 +1264,7 @@ function CreationEmptyBanner() {
             <img src={frame.src} alt="" />
             <span>{frame.caption}</span>
         </figure>)}
-        <span className="creation-empty-art-caption"><span>影策</span>把每一帧，交给镜头导演</span>
+        <span className="creation-empty-art-caption"><span>S1 Studio</span>把灵感变成画面</span>
     </div>;
 }
 
@@ -1289,9 +1290,9 @@ function CreationEmptySuggest({ onStartPrompt, onOpenLibrary }: { onStartPrompt:
 type CreationThinking = { title: string; hint: string; steps: string[] };
 
 function thinkingFor(mode: CreationMode): CreationThinking {
-    if (mode === "image") return { title: "正在为你画这一镜", hint: "影策正在理解你的构图意图，并把画面交给模型出图。", steps: ["理解构图", "定调画风", "生成画面"] };
-    if (mode === "text") return { title: "正在为你写这段", hint: "影策正在梳理你的创作脉络，组织语言与结构。", steps: ["梳理脉络", "组织语言", "输出段落"] };
-    return { title: "正在为你拍这一镜", hint: "影策正在拆解你的镜头脚本，设计运镜与光线，并交给模型渲染成片。", steps: ["拆解镜头", "设计运镜", "定调布光", "渲染成片"] };
+    if (mode === "image") return { title: "正在为你画这一镜", hint: "正在理解你的构图意图，并把画面交给模型生成。", steps: ["理解构图", "定调画风", "生成画面"] };
+    if (mode === "text") return { title: "正在为你写这段", hint: "正在梳理你的创作脉络，组织语言与结构。", steps: ["梳理脉络", "组织语言", "输出段落"] };
+    return { title: "正在为你拍这一镜", hint: "正在拆解镜头脚本，设计运镜与光线，并交给模型渲染成片。", steps: ["拆解镜头", "设计运镜", "定调布光", "渲染成片"] };
 }
 
 function directorNoteFor(mode: CreationMode, settings: CreationSettings): string {
@@ -1381,11 +1382,11 @@ function StoryboardShotCard({ shot, shotNumber, modelName, busy, onRetryFailure,
                         </div>
                     </div>
                 </div> : null}
-                {briefVisible && user ? <div className="storyboard-workbench-handoff" aria-hidden="true"><span className="storyboard-workbench-handoff-rail" /><span className="storyboard-workbench-handoff-badge"><ArrowDown />交给影策 AI</span><span className="storyboard-workbench-handoff-rail" /></div> : null}
+                {briefVisible && user ? <div className="storyboard-workbench-handoff" aria-hidden="true"><span className="storyboard-workbench-handoff-rail" /><span className="storyboard-workbench-handoff-badge"><ArrowDown />交给 S1 Studio AI</span><span className="storyboard-workbench-handoff-rail" /></div> : null}
                 <div className="storyboard-workbench-turn is-ai">
                     <span className="storyboard-workbench-ai-avatar"><Clapperboard /></span>
                     <div className="storyboard-workbench-turn-copy">
-                        <div className="storyboard-workbench-turn-meta"><span className="storyboard-workbench-turn-role is-ai"><Sparkles />影策 AI</span>{modelName ? <span className="storyboard-workbench-turn-model">{modelName}</span> : null}{result?.createdAt ? <time className="storyboard-workbench-turn-time" dateTime={result.createdAt}>{formatMessageTime(result.createdAt)}</time> : null}</div>
+                        <div className="storyboard-workbench-turn-meta"><span className="storyboard-workbench-turn-role is-ai"><Sparkles />S1 Studio AI</span>{modelName ? <span className="storyboard-workbench-turn-model">{modelName}</span> : null}{result?.createdAt ? <time className="storyboard-workbench-turn-time" dateTime={result.createdAt}>{formatMessageTime(result.createdAt)}</time> : null}</div>
                         <div className="storyboard-workbench-turn-bubble">
                             <StoryboardShotResult result={result} onRetryFailure={onRetryFailure} onCreateVariant={onCreateVariant} onCancel={onCancel} canvasPath={canvasPath} canvasHandoffAvailable={Boolean(canvasHandoffPath)} />
                         </div>
@@ -1412,7 +1413,7 @@ function StoryboardNextShotCard({ shotNumber, onCancel }: { shotNumber: number; 
                 <span className="storyboard-workbench-next-panel-icon"><Clapperboard /></span>
                 <div className="storyboard-workbench-next-panel-copy">
                     <strong>SC.{String(shotNumber).padStart(2, "0")} 等待你的脚本</strong>
-                    <span>在下方写下这一镜的镜头、画面或故事。影策会拆解脚本、设计运镜并渲染成片，这一镜会作为 SC.{String(shotNumber).padStart(2, "0")} 自动加入镜头轨道。</span>
+                    <span>在下方写下这一镜的镜头、画面或故事。Studio 会拆解脚本、设计运镜并渲染成片，这一镜会作为 SC.{String(shotNumber).padStart(2, "0")} 自动加入镜头轨道。</span>
                 </div>
             </div>
         </div>

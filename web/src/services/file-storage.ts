@@ -1,6 +1,7 @@
 import localforage from "localforage";
 import { nanoid } from "nanoid";
 
+import { shouldKeepGeneratedMediaRemote } from "@/lib/generated-media-policy";
 import { getActiveUserScope } from "@/lib/user-scope";
 import { resourceFileUrl, resourceIdFromStorageKey, resourceStorageKey, uploadResourceFile } from "@/services/api/resources";
 import { getCachedResourceBlob, getCachedResourceObjectUrl, primeResourceBlobCache } from "@/services/resource-blob-cache";
@@ -11,6 +12,11 @@ const store = localforage.createInstance({ name: "infinite-canvas", storeName: "
 const objectUrls = new Map<string, string>();
 
 export async function uploadMediaFile(input: string | Blob, prefix = "file"): Promise<UploadedFile> {
+    if (typeof input === "string" && shouldKeepGeneratedMediaRemote(input)) {
+        const kind = prefix === "video" ? "video" : prefix === "audio" ? "audio" : "file";
+        const meta = kind === "video" ? await readVideoMeta(input) : kind === "audio" ? await readAudioMeta(input) : {};
+        return { url: input, storageKey: "", bytes: 0, mimeType: kind === "video" ? "video/mp4" : kind === "audio" ? "audio/mpeg" : "application/octet-stream", ...meta };
+    }
     const blob = typeof input === "string" ? await (await fetch(input)).blob() : input;
     const previewUrl = URL.createObjectURL(blob);
     const meta: { width?: number; height?: number; durationMs?: number } = blob.type.startsWith("video/") ? await readVideoMeta(previewUrl) : blob.type.startsWith("audio/") ? await readAudioMeta(previewUrl) : {};

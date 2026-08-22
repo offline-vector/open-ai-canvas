@@ -7,6 +7,13 @@ function compactSource(source: string) {
 }
 
 describe("creation library button", () => {
+    test("starts guest workspaces in image mode while preserving the upstream video default", () => {
+        const source = readFileSync(resolve(import.meta.dir, "../src/pages/create/index.tsx"), "utf8");
+
+        expect(source).toContain('useState<CreationMode>(productConfig.guestWorkspace ? "image" : "video")');
+        expect(source).toContain("size: productConfig.guestWorkspace ? config.size : imageProfile.size.default");
+    });
+
     test("places a library control beside the generation mode picker", () => {
         const source = readFileSync(resolve(import.meta.dir, "../src/pages/create/index.tsx"), "utf8");
         const dockStart = source.indexOf('<footer className="creation-chat-dock">');
