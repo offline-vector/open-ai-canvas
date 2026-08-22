@@ -83,6 +83,22 @@ describe("public channel model catalog", () => {
         expect(profile.duration).toEqual({ selection: "enum", values: [5], default: 5 });
     });
 
+    test("uses the displayed protocol fallback for an unconfigured image model request", () => {
+        const channel = createModelChannel({
+            id: "image",
+            name: "S1API Image",
+            baseUrl: "https://s1api.com/v1",
+            apiKey: "synthetic-test-key",
+            apiFormat: "openai",
+            models: ["gpt-image-2"],
+        });
+        const model = "image::gpt-image-2";
+        const config = { ...defaultConfig, channels: [channel], model, imageModel: model };
+
+        expect(channel.modelCosts).toEqual([]);
+        expect(resolveModelRequestConfig(config, model).interfaceType).toBe("openai-image");
+    });
+
     test("preserves six public capabilities without expanding compatibility IDs", async () => {
         axios.post = (async () => ({
             data: {

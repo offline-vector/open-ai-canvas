@@ -8,7 +8,7 @@ import { CapabilityCardPicker, ProtocolCardPicker, type ModelCapabilityChoice } 
 import { defaultModelCapabilityConfig } from "@/lib/model-capabilities";
 import { modelProtocolCapability, modelProtocolDefinition, modelProtocolSupportsTokenBilling, type ModelProtocol, type ModelProtocolDefinition } from "@/lib/model-protocols";
 import { fetchPluginProviderCatalog } from "@/services/api/plugin-catalog";
-import { modelOptionName, type ModelChannel } from "@/stores/use-config-store";
+import { defaultProtocolForChannelModel, modelOptionName, type ModelChannel } from "@/stores/use-config-store";
 
 type ModelCost = NonNullable<ModelChannel["modelCosts"]>[number];
 
@@ -55,6 +55,8 @@ export function ChannelModelSettings({ channel, onChange }: { channel: ModelChan
     const inferredProtocol = activeModel ? defaultProtocolForModel(channel, activeModel, availableProtocols) : "";
     const activeProtocol = activeModelCost?.protocol || inferredProtocol;
     const activeCapability = activeModelCost?.capability || modelProtocolCapability(activeProtocol, availableProtocols) || (activeModel ? inferCapabilityFromModel(activeModel) : "text");
+    const activeProtocol = activeModel ? activeModelCost?.protocol || defaultProtocolForChannelModel(channel, activeModel) : undefined;
+    const activeCapability = activeModel ? activeModelCost?.capability || modelProtocolCapability(activeProtocol, availableProtocols) || inferCapabilityFromModel(activeModel) : undefined;
     const activeBillingMode = activeModelCost?.billingMode || "fixed_request";
     const activeTokenBillingSupported = modelProtocolSupportsTokenBilling(activeCapability, activeProtocol);
 
@@ -71,7 +73,7 @@ export function ChannelModelSettings({ channel, onChange }: { channel: ModelChan
                 {channel.models.map((rawModel) => {
                     const model = modelOptionName(rawModel);
                     const cost = channel.modelCosts?.find((item) => item.model === model);
-                    const protocol = cost?.protocol || defaultProtocolForModel(channel, model, availableProtocols);
+                    const protocol = cost?.protocol || defaultProtocolForChannelModel(channel, model);
                     const capability = cost?.capability || modelProtocolCapability(protocol, availableProtocols) || inferCapabilityFromModel(model);
                     const displayName = cost?.displayName?.trim() || model;
                     return (
@@ -310,14 +312,6 @@ function defaultProtocolForCapability(capability: ModelCapabilityChoice, availab
         audio: "openai-audio",
     };
     return fallbackMap[capability] || "chat-completion";
-}
-
-function defaultProtocolForModel(channel: ModelChannel, model: string, availableProtocols: ModelProtocolDefinition[] = []): ModelProtocol {
-    if (channel.interfaceType) {
-        return channel.interfaceType;
-    }
-    const capability = inferCapabilityFromModel(model);
-    return defaultProtocolForCapability(capability, availableProtocols);
 }
 
 function capabilityLabel(value: ModelCost["capability"]) {
