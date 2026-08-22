@@ -18,6 +18,7 @@ import { FOLDER_COLLAPSED_HEIGHT, FOLDER_COLLAPSED_WIDTH, isCanvasFolderNode, is
 import { ensureMediaNodeMinimumSize } from "@/lib/canvas/canvas-node-size";
 import { getPublicCanvasShare } from "@/services/api/canvas-share";
 import { useThemeStore } from "@/stores/use-theme-store";
+import { productConfig } from "@/config/product";
 import { CanvasNodeType, type CanvasNodeData, type Position, type ViewportTransform } from "@/types/canvas";
 
 type ContextMenu = { x: number; y: number; world: Position; nodeId?: string };
@@ -229,7 +230,7 @@ export default function SharedCanvasPage() {
                     <span className="max-w-[45vw] truncate text-base font-semibold">{title}</span>
                     <span className="inline-flex items-center gap-1 text-xs" style={{ color: theme.node.muted }}><Eye className="size-3.5" />只读分享</span>
                 </div>
-                <Link className="pointer-events-auto" to="/login"><Button type="text" icon={<LogIn className="size-4" />}>登录</Button></Link>
+                <Link className="pointer-events-auto" to={productConfig.guestWorkspace ? "/create" : "/login"}><Button type="text" icon={<LogIn className="size-4" />}>{productConfig.guestWorkspace ? "打开 Studio" : "登录"}</Button></Link>
             </header>
 
             <InfiniteCanvas containerRef={containerRef} viewport={viewport} backgroundMode={backgroundMode} onViewportChange={onViewportChange} onViewportPreviewChange={(next) => { viewportRef.current = next; }} onCanvasDeselect={() => { setSelectedNodeId(null); setContextMenu(null); }} onContextMenu={(event) => openContextMenu(event)} onDrop={(event) => { event.preventDefault(); unauthorized(); }}>

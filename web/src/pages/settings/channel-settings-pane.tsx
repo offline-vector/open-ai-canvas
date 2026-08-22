@@ -1,9 +1,10 @@
 import { App, Button, Form, Input, Popconfirm, Segmented, Select, Switch, Tooltip } from "antd";
-import { ChevronDown, ChevronUp, MonitorUp, Plus, RefreshCw, Trash2, Workflow } from "lucide-react";
+import { ChevronDown, ChevronUp, ExternalLink, Info, MonitorUp, Plus, RefreshCw, Trash2, Workflow } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { ChannelHeadersEditor, validateChannelHeaders } from "@/components/channel-headers-editor";
 import { WorkspaceState } from "@/components/layout/workspace-state";
+import { productConfig } from "@/config/product";
 import { mergeFetchedChannelModelCosts } from "@/lib/channel-model-catalog";
 import { desktopLocalChannelFormState, desktopLocalChannelPayloadValue, DESKTOP_LOCAL_CHANNEL_EXAMPLE_BASE_URL } from "@/lib/desktop-local-channel";
 import { fetchChannelModels } from "@/services/api/image";
@@ -226,6 +227,10 @@ export function ChannelSettingsPane({ onOpenModels, onOpenRunningHub, onOpenComf
                     <Button className="h-10 flex-1 sm:h-8 sm:flex-none" type="primary" icon={<Plus className="size-4" />} onClick={addChannel}>新增渠道</Button>
                 </div>
             </div>
+            <div className="mb-3 flex items-start gap-2 rounded-md border border-border/70 bg-muted/35 px-3 py-2.5 text-xs leading-5 text-foreground/62">
+                <Info className="mt-0.5 size-3.5 shrink-0 text-foreground/45" />
+                <span>S1API 默认渠道当前提供文本与图像 API，暂不提供视频、音频 API；视频、音频及短剧功能完整保留，可另行配置兼容的第三方渠道。</span>
+            </div>
             {onOpenRunningHub || onOpenComfyUI ? <section className="settings-section mb-3">
                 <div className="mb-3">
                     <h3 className="text-sm font-semibold">个人工作流渠道</h3>
@@ -266,6 +271,7 @@ export function ChannelSettingsPane({ onOpenModels, onOpenRunningHub, onOpenComf
                                         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-foreground/55">
                                             {channelProtocolLabel(channel)} · 已保存 {channel.models.length} 个模型
                                             <ChannelStatus channel={channel} />
+                                            {isS1APIChannel(channel) ? <a href={productConfig.apiKeyUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-foreground/72 hover:text-foreground">获取 API Key <ExternalLink className="size-3" /></a> : null}
                                         </div>
                                     </div>
                                     <div className="flex w-full justify-end gap-2 sm:w-auto sm:shrink-0">
@@ -437,6 +443,14 @@ function isKnownDefaultBaseUrl(value: string) {
     const normalized = value.trim().replace(/\/+$/, "");
     if (!normalized) return true;
     return [defaultBaseUrlForApiFormat("openai"), defaultBaseUrlForApiFormat("gemini")].some((candidate) => candidate.replace(/\/+$/, "") === normalized);
+}
+
+function isS1APIChannel(channel: ModelChannel) {
+    try {
+        return new URL(channel.baseUrl).hostname === new URL(productConfig.defaultApiBaseUrl).hostname;
+    } catch {
+        return false;
+    }
 }
 
 function requiresSecretKey(channel: ModelChannel) {

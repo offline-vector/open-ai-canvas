@@ -633,7 +633,7 @@ function AssetsEmptyState({ onNew, onImport, onGoCanvas }: { onNew: () => void; 
                         <span>{frame.caption}</span>
                     </figure>
                 ))}
-                <span className="assets-empty-banner-caption"><span>影策素材库</span>把每次创作的结果，留档成可复用的资产</span>
+                <span className="assets-empty-banner-caption"><span>S1API Studio 素材库</span>把每次创作的结果，留档成可复用的资产</span>
             </div>
             <div className="assets-empty-cards">
                 <button type="button" className="assets-empty-card" onClick={onNew}>

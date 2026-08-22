@@ -251,7 +251,7 @@ describe("public channel model catalog", () => {
         expect(html).toContain("Omni Flash");
     });
 
-    test("builds the creation catalog only from public backend models and user channels", () => {
+    test("builds the creation catalog from public, user, and the S1API guest default channel", () => {
         const platform = createModelChannel({
             id: "public-logical-models",
             name: "平台模型",
@@ -278,9 +278,12 @@ describe("public channel model catalog", () => {
         }).config;
         const staleSnapshot = { ...normalized, models: [...normalized.models, "ghost-image"], imageModels: [...normalized.imageModels, "ghost-image"] };
 
-        expect(selectableModelsByCapability(staleSnapshot, "image")).toEqual(["public-logical-models::frontend-image", "custom-channel::custom-image-v1"]);
-        expect(staleSnapshot.channels.some((channel) => channel.id === "default")).toBe(false);
-        expect(selectableModelsByCapability(staleSnapshot, "image")).not.toContain("default::gpt-image-2");
+        expect(selectableModelsByCapability(staleSnapshot, "image")).toEqual([
+            "public-logical-models::frontend-image",
+            "custom-channel::custom-image-v1",
+            "default::gpt-image-2",
+        ]);
+        expect(staleSnapshot.channels.some((channel) => channel.id === "default")).toBe(true);
         expect(selectableModelsByCapability(staleSnapshot, "image")).not.toContain("ghost-image");
     });
 

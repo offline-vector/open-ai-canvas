@@ -236,7 +236,7 @@ test("a selected Dreamina local model never creates a Backend task", async () =>
     );
 
     expect(result).toEqual({ mode: "video", video: { dataUrl: "data:video/mp4;base64,AAAA", mimeType: "video/mp4", bytes: 3 } });
-    expect(localInput?.settings).toEqual({ aspect: "1:1", resolution: "720", duration: 4 });
+    expect(localInput?.settings).toEqual({ aspect: "auto", resolution: "720", duration: 4 });
     expect((localInput as unknown as { clientOperationId?: string }).clientOperationId).toBe("dreamina-task-route-0001");
     expect((localInput as unknown as { context?: unknown }).context).toEqual({ scope: "scoped" });
     expect(backendCalls).toBe(0);

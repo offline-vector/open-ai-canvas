@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -10,6 +11,11 @@ import (
 func isPublicMediaURL(value string) bool {
 	lower := strings.ToLower(value)
 	return strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://")
+}
+
+func isBrowserMediaURL(value string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(value))
+	return err == nil && strings.EqualFold(parsed.Scheme, "https") && parsed.Hostname() != ""
 }
 
 func isSeedanceVideoConfig(config providerConfig) bool {

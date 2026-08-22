@@ -132,6 +132,9 @@ func runVolcengineJiMengVideoTask(ctx context.Context, input canvasGenerationInp
 			if videoURL == "" {
 				return nil, fmt.Errorf("即梦视频任务 %s 已完成但没有返回视频地址", taskID)
 			}
+			if GeneratedMediaRemoteOnly() {
+				return remoteGeneratedMediaResult("video", videoURL, "video/mp4")
+			}
 			data, mimeType, err := getExternalBinary(withProviderRequestKind(ctx, "download"), videoURL)
 			if err != nil {
 				return nil, fmt.Errorf("即梦视频任务 %s 下载失败：%w", taskID, err)
@@ -224,6 +227,18 @@ func validateJiMengResponse(payload jiMengResponse) error {
 
 func jiMengImageDataURLs(ctx context.Context, payload jiMengResponse) ([]string, error) {
 	images := make([]string, 0, len(payload.Data.ImageURLs)+len(payload.Data.BinaryDataBase64))
+	if GeneratedMediaRemoteOnly() {
+		if len(payload.Data.BinaryDataBase64) > 0 || len(payload.Data.ImageURLs) == 0 {
+			return nil, errors.New("即梦没有返回可由浏览器直接访问的图片 URL")
+		}
+		for _, rawURL := range payload.Data.ImageURLs {
+			if !isBrowserMediaURL(strings.TrimSpace(rawURL)) {
+				return nil, errors.New("即梦返回了不可直访的图片 URL")
+			}
+			images = append(images, strings.TrimSpace(rawURL))
+		}
+		return images, nil
+	}
 	for _, rawURL := range payload.Data.ImageURLs {
 		data, mimeType, err := getExternalBinary(withProviderRequestKind(ctx, "download"), rawURL)
 		if err != nil {

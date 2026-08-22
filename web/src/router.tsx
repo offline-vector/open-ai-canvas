@@ -8,6 +8,7 @@ import { loadAssetsPage, loadCanvasPage, loadCreatePage, loadProjectsPage, loadW
 import UserLayout from "@/layouts/user-layout";
 import { AuthScene } from "@/pages/auth/auth-scene";
 import RouteErrorPage from "@/pages/route-error";
+import { productConfig } from "@/config/product";
 
 const AdminPage = lazy(() => import("@/pages/admin"));
 const AnalyticsPage = lazy(() => import("@/pages/admin/admin-route-pages").then((module) => ({ default: module.AnalyticsPage })));
@@ -78,8 +79,8 @@ export const router = createBrowserRouter([
         element: <AuthScene />,
         errorElement: <RouteErrorPage />,
         children: [
-            { path: "/login", element: fullScreenDeferred(<LoginPage />) },
-            { path: "/register", element: fullScreenDeferred(<RegisterPage />) },
+            { path: "/login", element: productConfig.guestWorkspace ? <Navigate to="/create" replace /> : fullScreenDeferred(<LoginPage />) },
+            { path: "/register", element: productConfig.guestWorkspace ? <Navigate to="/create" replace /> : fullScreenDeferred(<RegisterPage />) },
         ],
     },
     { path: "/share/canvas/:token", element: fullScreenDeferred(<SharedCanvasPage />), errorElement: <RouteErrorPage /> },

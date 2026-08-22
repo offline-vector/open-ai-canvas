@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
 import { UserOSSSettingsForm } from "@/components/layout/user-oss-settings-form";
+import { productConfig } from "@/config/product";
 import { audioFormatOptions, audioVoiceOptions, normalizeAudioSpeedValue } from "@/lib/audio-generation";
 import { refreshSystemChannels } from "@/lib/user-session";
 import { defaultConfig, useConfigStore, useEffectiveConfig } from "@/stores/use-config-store";
@@ -49,7 +50,8 @@ export default function SettingsPage() {
     const requestedSectionEnabled = requestedSection !== "runninghub" && requestedSection !== "comfyui"
         || requestedSection === "runninghub" && runningHubPluginEnabled
         || requestedSection === "comfyui" && comfyUIPluginEnabled;
-    const initialSection = isConfigSection(requestedSection) && requestedSectionEnabled ? requestedSection : customChannelsEnabled ? "channels" : "models";
+    const requestedSectionVisible = isConfigSection(requestedSection) && requestedSectionEnabled && !(productConfig.guestWorkspace && requestedSection === "storage");
+    const initialSection = requestedSectionVisible ? requestedSection : customChannelsEnabled ? "channels" : "models";
     const [activeTab, setActiveTab] = useState<ConfigSectionKey>(initialSection === "channels" && !customChannelsEnabled ? "models" : initialSection);
     const config = useConfigStore((state) => state.config);
     const effectiveConfig = useEffectiveConfig();
@@ -59,7 +61,8 @@ export default function SettingsPage() {
     const userChannels = config.channels.filter((channel) => channel.scope !== "system");
     const visibleConfigSections = useMemo(() => (customChannelsEnabled ? configSections : configSections.filter((section) => section.key !== "channels"))
         .filter((section) => section.key !== "runninghub" || runningHubPluginEnabled)
-        .filter((section) => section.key !== "comfyui" || comfyUIPluginEnabled), [comfyUIPluginEnabled, customChannelsEnabled, runningHubPluginEnabled]);
+        .filter((section) => section.key !== "comfyui" || comfyUIPluginEnabled)
+        .filter((section) => section.key !== "storage" || !productConfig.guestWorkspace), [comfyUIPluginEnabled, customChannelsEnabled, runningHubPluginEnabled]);
 
     const isVisibleConfigSection = (value: string | null): value is ConfigSectionKey => isConfigSection(value) && visibleConfigSections.some((section) => section.key === value);
 

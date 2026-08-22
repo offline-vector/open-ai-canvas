@@ -463,7 +463,67 @@ func localObjectKey(userID string, kind string, fileName string, mimeType string
 }
 
 func (s *Service) persistGeneratedMediaResult(userID string, result map[string]interface{}) (map[string]interface{}, error) {
+	if GeneratedMediaRemoteOnly() {
+		return validateRemoteOnlyGeneratedMediaResult(result)
+	}
 	return s.persistGeneratedMediaResultMode(userID, result, false, true)
+}
+
+func validateRemoteOnlyGeneratedMediaResult(result map[string]interface{}) (map[string]interface{}, error) {
+	if result == nil {
+		return map[string]interface{}{}, nil
+	}
+	encoded, err := json.Marshal(result)
+	if err != nil {
+		return nil, err
+	}
+	var normalized map[string]interface{}
+	if err := json.Unmarshal(encoded, &normalized); err != nil {
+		return nil, err
+	}
+	if err := rejectStoredGeneratedMedia(normalized); err != nil {
+		return nil, err
+	}
+	return normalized, nil
+}
+
+func rejectStoredGeneratedMedia(value interface{}) error {
+	switch item := value.(type) {
+	case []interface{}:
+		for _, child := range item {
+			if err := rejectStoredGeneratedMedia(child); err != nil {
+				return err
+			}
+		}
+	case map[string]interface{}:
+		for key, child := range item {
+			if text, ok := child.(string); ok {
+				trimmed := strings.TrimSpace(text)
+				if strings.HasPrefix(trimmed, "data:image/") || strings.HasPrefix(trimmed, "data:video/") || strings.HasPrefix(trimmed, "data:audio/") {
+					return errors.New("当前部署不接收或存储生成媒体；上游必须返回可由浏览器直接访问的 HTTPS URL")
+				}
+				if (key == "storageKey" || key == "resourceId") && trimmed != "" {
+					return errors.New("当前部署禁止把生成媒体写入 Studio 资源存储")
+				}
+				if remoteOnlyMediaURLKey(key) && isPublicMediaURL(trimmed) && !isBrowserMediaURL(trimmed) {
+					return errors.New("当前部署只接受可由浏览器直接访问的 HTTPS 生成媒体 URL")
+				}
+			}
+			if err := rejectStoredGeneratedMedia(child); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func remoteOnlyMediaURLKey(key string) bool {
+	switch key {
+	case "dataUrl", "content", "url", "coverUrl", "image_url", "imageUrl", "video_url", "videoUrl", "audio_url", "audioUrl":
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *Service) persistLegacyGeneratedMediaResult(userID string, result map[string]interface{}) (map[string]interface{}, error) {

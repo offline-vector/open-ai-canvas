@@ -108,7 +108,7 @@ func main() {
 	handler.RegisterCanvasShareRoutes(api, svc)
 	r.NoRoute(handler.SystemProxyNoRouteHandler(svc))
 
-	log.Printf("影策 backend listening on %s", addr)
+	log.Printf("S1API Studio backend listening on %s", addr)
 	if err := r.Run(addr); err != nil {
 		log.Fatal(err)
 	}
