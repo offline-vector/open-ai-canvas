@@ -8,7 +8,7 @@ import { CapabilityCardPicker, ProtocolCardPicker } from "@/components/model-pro
 import { defaultModelCapabilityConfig } from "@/lib/model-capabilities";
 import { modelProtocolCapability, modelProtocolDefinition, modelProtocolSupportsTokenBilling, type ModelProtocol } from "@/lib/model-protocols";
 import { fetchPluginProviderCatalog } from "@/services/api/plugin-catalog";
-import { modelOptionName, type ModelChannel } from "@/stores/use-config-store";
+import { defaultProtocolForChannelModel, modelOptionName, type ModelChannel } from "@/stores/use-config-store";
 
 type ModelCost = NonNullable<ModelChannel["modelCosts"]>[number];
 
@@ -25,11 +25,11 @@ export function ChannelModelSettings({ channel, onChange }: { channel: ModelChan
     const updateCost = (model: string, patch: Partial<ModelCost>) => {
         const current = channel.modelCosts?.find((item) => item.model === model) || {
             model,
-            capability: modelProtocolCapability(defaultProtocolForModel(channel, model), availableProtocols) || "text",
-            protocol: defaultProtocolForModel(channel, model),
+            capability: modelProtocolCapability(defaultProtocolForChannelModel(channel, model), availableProtocols) || "text",
+            protocol: defaultProtocolForChannelModel(channel, model),
             billingMode: "fixed_request" as const,
             unitPriceMicrocredits: 0,
-            capabilityConfig: defaultModelCapabilityConfig(defaultProtocolForModel(channel, model), model),
+            capabilityConfig: defaultModelCapabilityConfig(defaultProtocolForChannelModel(channel, model), model),
         };
         const next = [...(channel.modelCosts || []).filter((item) => item.model !== model), { ...current, ...patch, model }];
         onChange(next.filter((item) => channel.models.includes(item.model)));
@@ -48,7 +48,7 @@ export function ChannelModelSettings({ channel, onChange }: { channel: ModelChan
     };
 
     const activeModelCost = activeModel ? channel.modelCosts?.find((item) => item.model === activeModel) : undefined;
-    const activeProtocol = activeModel ? activeModelCost?.protocol || defaultProtocolForModel(channel, activeModel) : undefined;
+    const activeProtocol = activeModel ? activeModelCost?.protocol || defaultProtocolForChannelModel(channel, activeModel) : undefined;
     const activeCapability = activeModel ? activeModelCost?.capability || modelProtocolCapability(activeProtocol, availableProtocols) || "text" : undefined;
     const activeBillingMode = activeModelCost?.billingMode || "fixed_request";
     const activeTokenBillingSupported = modelProtocolSupportsTokenBilling(activeCapability, activeProtocol);
@@ -66,7 +66,7 @@ export function ChannelModelSettings({ channel, onChange }: { channel: ModelChan
                 {channel.models.map((rawModel) => {
                     const model = modelOptionName(rawModel);
                     const cost = channel.modelCosts?.find((item) => item.model === model);
-                    const protocol = cost?.protocol || defaultProtocolForModel(channel, model);
+                    const protocol = cost?.protocol || defaultProtocolForChannelModel(channel, model);
                     const capability = cost?.capability || modelProtocolCapability(protocol, availableProtocols) || "text";
                     const billingMode = cost?.billingMode || "fixed_request";
                     const displayName = cost?.displayName?.trim() || model;
@@ -185,10 +185,6 @@ export function ChannelModelSettings({ channel, onChange }: { channel: ModelChan
             </Drawer>
         </div>
     );
-}
-
-function defaultProtocolForModel(channel: ModelChannel, model: string): ModelProtocol {
-    return channel.interfaceType || "";
 }
 
 function capabilityLabel(value: ModelCost["capability"]) {

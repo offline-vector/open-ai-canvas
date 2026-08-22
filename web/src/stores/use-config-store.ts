@@ -922,7 +922,7 @@ export function resolveModelRequestConfig(config: AiConfig, value: string) {
     const channel = resolveModelChannel(config, value);
     const model = modelOptionName(value || config.model);
     const modelProtocol = channel.modelCosts?.find((item) => item.model === model)?.protocol;
-    const interfaceType = modelProtocol || channel.interfaceType;
+    const interfaceType = modelProtocol || defaultProtocolForChannelModel(channel, model);
     return projectDesktopLocalChannelRuntime({
         ...config,
         model,
@@ -935,6 +935,15 @@ export function resolveModelRequestConfig(config: AiConfig, value: string) {
         interfaceType,
         channelId: channel.scope === "system" ? channel.id : "",
     });
+}
+
+export function defaultProtocolForChannelModel(channel: ModelChannel, model: string): ModelProtocol {
+    if (channel.interfaceType) return channel.interfaceType;
+    if (channel.apiFormat === "gemini" && modelMatchesCapability(model, "video")) return "gemini-veo";
+    if (modelMatchesCapability(model, "video")) return "newapi";
+    if (modelOptionName(model).trim().toLowerCase().startsWith("grok-imagine-image")) return "grok-image";
+    if (modelMatchesCapability(model, "image")) return "openai-image";
+    return "chat-completion";
 }
 
 function normalizeChannels(config: AiConfig, ensureDefault = true) {
