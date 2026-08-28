@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, type ComponentType, type CSSPrope
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 
 import { BrandLogoFrame } from "@/components/brand/brand-logo";
+import { productConfig } from "@/config/product";
 import { navigationTools, type NavigationToolSlug } from "@/constant/navigation-tools";
 import { useWalletBalance } from "@/hooks/use-wallet-balance";
 import { useWorkspaceLogout } from "@/hooks/use-workspace-logout";
@@ -70,7 +71,7 @@ function buildNav(features: FeatureAvailability, balance: string, isAdmin: boole
                 to: `/settings?section=${section.key}`,
             })),
         },
-        { id: "logout", title: "退出登录", icon: LogOut, action: "logout" },
+        ...(productConfig.guestWorkspace ? [] : [{ id: "logout", title: "退出登录", icon: LogOut, action: "logout" as const }]),
     ];
 
     return { groups, footer };

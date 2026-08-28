@@ -56,6 +56,14 @@ describe("workspace route loading", () => {
         expect(canvasCard).toContain("正在打开");
     });
 
+    test("uses product branding and hides logout in guest workspaces", () => {
+        const navigation = source("../src/components/layout/workspace-sidebar-nav.tsx");
+
+        expect(navigation).toContain("{appearance.brandName}");
+        expect(navigation).toContain("productConfig.guestWorkspace ? []");
+        expect(navigation).not.toContain(">影策<");
+    });
+
     test("uses a quiet workspace skeleton for initial hydration", () => {
         const loader = source("../src/components/ui/aceternity/full-screen-loader.tsx");
         const css = source("../src/styles/globals.css");
