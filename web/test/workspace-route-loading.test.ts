@@ -29,6 +29,14 @@ describe("workspace route loading", () => {
         expect(navigation).toContain("onFocus={() => preloadWorkspaceRoute(linkTo)}");
     });
 
+    test("uses product branding and hides logout in guest workspaces", () => {
+        const navigation = source("../src/components/layout/workspace-sidebar-nav.tsx");
+
+        expect(navigation).toContain("{productConfig.name}");
+        expect(navigation).toContain("productConfig.guestWorkspace ? []");
+        expect(navigation).not.toContain(">影策<");
+    });
+
     test("uses a quiet workspace skeleton for initial hydration", () => {
         const loader = source("../src/components/ui/aceternity/full-screen-loader.tsx");
         const css = source("../src/styles/globals.css");

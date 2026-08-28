@@ -2,6 +2,7 @@ import { ChevronDown, ChevronRight, Home, Infinity as InfinityIcon, LogOut, Pane
 import { useEffect, useMemo, useRef, useState, type ComponentType, type CSSProperties } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 
+import { productConfig } from "@/config/product";
 import { navigationTools, type NavigationToolSlug } from "@/constant/navigation-tools";
 import { useWalletBalance } from "@/hooks/use-wallet-balance";
 import { useWorkspaceLogout } from "@/hooks/use-workspace-logout";
@@ -73,7 +74,7 @@ function buildNav(features: FeatureAvailability, balance: string, isAdmin: boole
                 to: `/settings?section=${section.key}`,
             })),
         },
-        { id: "logout", title: "退出登录", icon: LogOut, action: "logout" },
+        ...(productConfig.guestWorkspace ? [] : [{ id: "logout", title: "退出登录", icon: LogOut, action: "logout" as const }]),
     ];
 
     return { groups, footer };
@@ -119,7 +120,7 @@ function WorkspaceSwitcher({ collapsed, onNavigate, onExpand }: { collapsed: boo
                         <InfinityIcon className="size-4" strokeWidth={2} />
                     </span>
                     <span className="flex min-w-0 flex-col">
-                        <span className="app-workspace-brand-wordmark truncate text-[var(--fs-body)] leading-none font-medium">影策</span>
+                        <span className="app-workspace-brand-wordmark truncate text-[var(--fs-body)] leading-none font-medium">{productConfig.name}</span>
                         <span className="mt-1 truncate text-[var(--fs-label)] leading-none text-foreground/42">创作工作台</span>
                     </span>
                 </span>
@@ -131,7 +132,7 @@ function WorkspaceSwitcher({ collapsed, onNavigate, onExpand }: { collapsed: boo
                     <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
                     <div className="app-workspace-nav-popover absolute left-3 right-3 top-full z-50 mt-1 overflow-hidden rounded-lg border border-[var(--workspace-border)] bg-[var(--workspace-surface-strong)] py-1 animate-in fade-in zoom-in-95 duration-100">
                         <div className="px-3 py-2.5">
-                            <div className="truncate text-[var(--fs-body)] font-semibold">影策</div>
+                            <div className="truncate text-[var(--fs-body)] font-semibold">{productConfig.name}</div>
                             <div className="mt-0.5 truncate text-[var(--fs-label)] text-foreground/45">创作工作台</div>
                         </div>
                         <div className="mx-2 my-1 h-px bg-[var(--workspace-border)]" />
