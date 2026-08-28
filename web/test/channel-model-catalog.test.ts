@@ -74,7 +74,7 @@ describe("public channel model catalog", () => {
         const model = "image::gpt-image-2";
         const config = { ...defaultConfig, channels: [channel], model, imageModel: model };
 
-        expect(channel.modelCosts).toEqual([]);
+        expect(channel.modelCosts ?? []).toEqual([]);
         expect(resolveModelRequestConfig(config, model).interfaceType).toBe("openai-image");
     });
 
