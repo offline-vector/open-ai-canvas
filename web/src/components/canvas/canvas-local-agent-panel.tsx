@@ -1043,7 +1043,7 @@ function AgentConnectView({
                             <div className="min-w-0 flex-1 text-xs leading-5" style={{ color: theme.node.muted }}>
                                 <div className="text-sm font-medium" style={{ color: theme.node.text }}>当前支持范围</div>
                                 <div className="mt-1">网页侧边栏使用 Codex；外部 MCP 已提供 Codex 与 Claude Code 接入。Hermes、WorkBuddy 尚未验证。Codex 需要已登录或配置可用凭据。</div>
-                                <Button type="link" size="small" className="mt-1 !h-7 !px-0" href="https://github.com/ddcat-ai/open-ai-canvas/tree/main/canvas-agent" target="_blank" rel="noreferrer" icon={<ExternalLink className="size-3.5" />}>
+                                <Button type="link" size="small" className="mt-1 !h-7 !px-0" href="https://github.com/offline-vector/open-ai-canvas/tree/main/canvas-agent" target="_blank" rel="noreferrer" icon={<ExternalLink className="size-3.5" />}>
                                     查看完整说明
                                 </Button>
                             </div>

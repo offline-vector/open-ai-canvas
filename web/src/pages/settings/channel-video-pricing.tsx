@@ -25,7 +25,7 @@ export function ChannelModelSettings({ channel, onChange }: { channel: ModelChan
     if (!channel.models.length) return null;
 
     const updateCost = (model: string, patch: Partial<ModelCost>) => {
-        const defaultProtocol = defaultProtocolForModel(channel, model, availableProtocols);
+        const defaultProtocol = defaultProtocolForChannelModel(channel, model);
         const defaultCap = modelProtocolCapability(defaultProtocol, availableProtocols) || inferCapabilityFromModel(model);
         const current = channel.modelCosts?.find((item) => item.model === model) || {
             model,
@@ -52,9 +52,6 @@ export function ChannelModelSettings({ channel, onChange }: { channel: ModelChan
     };
 
     const activeModelCost = activeModel ? channel.modelCosts?.find((item) => item.model === activeModel) : undefined;
-    const inferredProtocol = activeModel ? defaultProtocolForModel(channel, activeModel, availableProtocols) : "";
-    const activeProtocol = activeModelCost?.protocol || inferredProtocol;
-    const activeCapability = activeModelCost?.capability || modelProtocolCapability(activeProtocol, availableProtocols) || (activeModel ? inferCapabilityFromModel(activeModel) : "text");
     const activeProtocol = activeModel ? activeModelCost?.protocol || defaultProtocolForChannelModel(channel, activeModel) : undefined;
     const activeCapability = activeModel ? activeModelCost?.capability || modelProtocolCapability(activeProtocol, availableProtocols) || inferCapabilityFromModel(activeModel) : undefined;
     const activeBillingMode = activeModelCost?.billingMode || "fixed_request";

@@ -99,7 +99,7 @@ export const eagleAssetPlugin: RegisteredPlugin = {
         apiVersion: "yingce.plugin/v1",
         description: "把 Eagle 作为 S1API Studio 的外部素材来源，直接浏览原始文件夹并读写 Eagle 文件。",
         documentation: eaglePluginDocumentation,
-        author: "S1API Studio 社区",
+        author: "S1API Studio",
         permissions: ["asset.read", "asset.search", "asset.upload", "external.open"],
         trusted: true,
         configuration: {

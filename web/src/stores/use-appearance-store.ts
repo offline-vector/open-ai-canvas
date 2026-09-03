@@ -4,9 +4,9 @@ import type { PublicAppearance } from "@/services/api/appearance";
 
 export const DEFAULT_PUBLIC_APPEARANCE: PublicAppearance = {
     schemaVersion: 3,
-    brandName: "影策",
-    brandSlug: "open-ai-canvas",
-    authHeroTitle: "让一个故事，\n从文字走向银幕。",
+    brandName: "S1API Studio",
+    brandSlug: "s1api-studio",
+    authHeroTitle: "把灵感，\n变成可以继续创作的画面。",
     authHeroDescription: "",
     logoUrl: "/logo.svg",
     darkLogoUrl: "/logo.svg",
@@ -97,7 +97,7 @@ export function appearanceLogoURL(appearance: PublicAppearance, theme: "light" |
 }
 
 export function brandStudioLabel(appearance: PublicAppearance) {
-    if (appearance.brandName === DEFAULT_PUBLIC_APPEARANCE.brandName && appearance.brandSlug === DEFAULT_PUBLIC_APPEARANCE.brandSlug) return "YINGCE STUDIO";
+    if (appearance.brandName === DEFAULT_PUBLIC_APPEARANCE.brandName && appearance.brandSlug === DEFAULT_PUBLIC_APPEARANCE.brandSlug) return "S1API STUDIO";
     return appearance.brandSlug.replace(/-+/g, " ").toLocaleUpperCase();
 }
 

@@ -109,6 +109,16 @@ export function collectMediaStorageKeys(value: unknown, keys = new Set<string>()
     return keys;
 }
 
+function readVideoMeta(url: string) {
+    return new Promise<{ width: number; height: number; durationMs?: number }>((resolve) => {
+        const video = document.createElement("video");
+        const done = () => resolve({ width: video.videoWidth || 1280, height: video.videoHeight || 720, durationMs: Number.isFinite(video.duration) ? Math.round(video.duration * 1000) : undefined });
+        video.onloadedmetadata = done;
+        video.onerror = done;
+        video.src = url;
+    });
+}
+
 function readAudioMeta(url: string) {
     return new Promise<{ durationMs?: number }>((resolve) => {
         const audio = document.createElement("audio");
