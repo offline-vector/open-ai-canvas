@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"infinite-canvas/backend/internal/protocol"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -79,5 +80,54 @@ func TestRemoteOnlyGeneratedMediaRejectsHTTPURL(t *testing.T) {
 	})
 	if err == nil || !strings.Contains(err.Error(), "HTTPS") {
 		t.Fatalf("persistGeneratedMediaResult() error = %v", err)
+	}
+}
+
+func TestRemoteOnlyDeclarativeProtocolKeepsRemoteMediaURLs(t *testing.T) {
+	t.Setenv("CANVAS_GENERATED_MEDIA_MODE", "remote_only")
+
+	tests := []struct {
+		name       string
+		mode       string
+		result     *protocol.Result
+		resultKey  string
+		resultList bool
+		wantURL    string
+	}{
+		{name: "image", mode: "image", result: &protocol.Result{Images: []protocol.MediaReference{{URL: "https://media.example/generated.png", MIMEType: "image/png"}}}, resultKey: "images", resultList: true, wantURL: "https://media.example/generated.png"},
+		{name: "video", mode: "video", result: &protocol.Result{Videos: []protocol.MediaReference{{URL: "https://media.example/generated.mp4", MIMEType: "video/mp4"}}}, resultKey: "video", wantURL: "https://media.example/generated.mp4"},
+		{name: "audio", mode: "audio", result: &protocol.Result{Audios: []protocol.MediaReference{{URL: "https://media.example/generated.mp3", MIMEType: "audio/mpeg"}}}, resultKey: "audio", wantURL: "https://media.example/generated.mp3"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := finishProtocolResult(context.Background(), providerConfig{}, test.mode, test.result)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var media map[string]interface{}
+			if test.resultList {
+				items, ok := result[test.resultKey].([]interface{})
+				if !ok || len(items) != 1 {
+					t.Fatalf("%s = %#v", test.resultKey, result[test.resultKey])
+				}
+				media, _ = items[0].(map[string]interface{})
+			} else {
+				media, _ = result[test.resultKey].(map[string]interface{})
+			}
+			if media["dataUrl"] != test.wantURL {
+				t.Fatalf("media = %#v", media)
+			}
+		})
+	}
+}
+
+func TestRemoteOnlyDeclarativeProtocolRejectsInlineMedia(t *testing.T) {
+	t.Setenv("CANVAS_GENERATED_MEDIA_MODE", "remote_only")
+	_, err := finishProtocolResult(context.Background(), providerConfig{}, "image", &protocol.Result{
+		Images: []protocol.MediaReference{{DataURL: "data:image/png;base64,aGVsbG8="}},
+	})
+	if err == nil || !strings.Contains(err.Error(), "HTTPS URL") {
+		t.Fatalf("finishProtocolResult() error = %v", err)
 	}
 }

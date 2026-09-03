@@ -3035,6 +3035,18 @@ func finishProtocolResult(ctx context.Context, config providerConfig, mode strin
 	}
 	items := make([]interface{}, 0, len(references))
 	for _, reference := range references {
+		if GeneratedMediaRemoteOnly() {
+			value := strings.TrimSpace(firstNonEmpty(reference.URL, reference.DataURL))
+			if !isBrowserMediaURL(value) {
+				return nil, errors.New("当前 Studio 不接收或存储生成媒体；声明式协议必须返回可由浏览器直接访问的 HTTPS URL")
+			}
+			item := map[string]interface{}{"dataUrl": value}
+			if mimeType := strings.TrimSpace(reference.MIMEType); mimeType != "" {
+				item["mimeType"] = mimeType
+			}
+			items = append(items, item)
+			continue
+		}
 		data, mimeType, err := protocolMediaBytes(ctx, config, reference)
 		if err != nil {
 			return nil, err
