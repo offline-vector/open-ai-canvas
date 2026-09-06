@@ -314,69 +314,6 @@ func TestOfficialWanProfilesUseMutuallyExclusiveReferenceFields(t *testing.T) {
 	}
 }
 
-func TestOfficialRollDekWanVideoUsesVideosLifecycle(t *testing.T) {
-	adapter := officialPackageAdapter(t, "rolldek-wan-video.yingce-plugin", "rolldek-wan-video")
-	request := GenerationRequest{
-		Model: "wan3.0-video-prime-1080p", Prompt: "保持角色一致", Duration: 11, AspectRatio: "16:9", Resolution: "1080p",
-		Images: []MediaReference{{URL: "https://cdn.example/character.png", Role: "reference_image"}},
-		Videos: []MediaReference{{URL: "https://cdn.example/motion.mp4", Role: "reference_video", Metadata: map[string]any{"durationMs": 5250}}},
-		Audios: []MediaReference{{URL: "https://cdn.example/voice.mp3", Role: "reference_audio"}},
-	}
-	create, err := adapter.BuildCreate(context.Background(), RequestContext{Request: request})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if create.Method != "POST" || create.Path != "/v1/videos" || create.ContentType != "application/json" {
-		t.Fatalf("RollDek create = %#v", create)
-	}
-	body := manifestTestBody(t, create)
-	if body["model"] != request.Model || body["seconds"] != "11" || body["size"] != "1080P" || body["aspect_ratio"] != "16:9" {
-		t.Fatalf("RollDek create body = %#v", body)
-	}
-	images, _ := body["reference_images"].([]any)
-	image, _ := images[0].(map[string]any)
-	videos, _ := body["reference_videos"].([]any)
-	video, _ := videos[0].(map[string]any)
-	audios, _ := body["reference_audios"].([]any)
-	audio, _ := audios[0].(map[string]any)
-	if image["url"] != request.Images[0].URL || image["role"] != "reference_image" || video["url"] != request.Videos[0].URL || video["duration"] != 5.25 || audio["url"] != request.Audios[0].URL {
-		t.Fatalf("RollDek references = images:%#v videos:%#v audios:%#v", images, videos, audios)
-	}
-
-	created, err := adapter.ParseCreate(context.Background(), []byte(`{"id":"task-roll-1","task_id":"task-roll-1","status":"queued"}`))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if created.TaskID != "task-roll-1" || created.Status != StatusPending {
-		t.Fatalf("RollDek create result = %#v", created)
-	}
-	poll, err := adapter.BuildPoll(context.Background(), PollContext{Request: request, TaskID: created.TaskID})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if poll.Method != "GET" || poll.Path != "/v1/videos/task-roll-1" {
-		t.Fatalf("RollDek poll = %#v", poll)
-	}
-	state, err := adapter.ParsePoll(context.Background(), PollContext{Request: request, TaskID: created.TaskID}, []byte(`{"id":"task-roll-1","status":"completed","metadata":{"url":"https://cdn.example/result.mp4"}}`))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if state.Status != StatusSucceeded || state.Result == nil || len(state.Result.Videos) != 1 || state.Result.Videos[0].URL != "https://cdn.example/result.mp4" {
-		t.Fatalf("RollDek poll result = %#v", state)
-	}
-	resultAdapter, ok := adapter.(ResultAdapter)
-	if !ok {
-		t.Fatal("RollDek adapter does not expose result download")
-	}
-	result, err := resultAdapter.BuildResult(context.Background(), PollContext{Request: request, TaskID: created.TaskID})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result.Method != "GET" || result.Path != "/v1/videos/task-roll-1/content" {
-		t.Fatalf("RollDek result = %#v", result)
-	}
-}
-
 func TestOfficialOpenAIVideosDeclaresAuthenticatedResultDownload(t *testing.T) {
 	adapter := officialPackageAdapter(t, "openai-videos.yingce-plugin", "newapi")
 	capability, ok := adapter.(ResultCapability)

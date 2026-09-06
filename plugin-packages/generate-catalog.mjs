@@ -361,29 +361,6 @@ add({
 });
 
 add({
-  id: "rolldek-wan-video", providerId: "rolldek-wan-video", name: "RollDek WAN 3.0 Video", vendor: "RollDek", capability: "video",
-  baseUrl: "https://rolldek.com", auth: bearer, params: videoParams, requiresPublicMediaUrls: true,
-  notes: "该协议严格对应 RollDek WAN 3.0 的 JSON /v1/videos 合同。RollDek 同时暴露的其他兼容创建入口不共享任务查询路径，不能与 NewAPI Video Generations Channel 2 混用。",
-  create: jsonCreate("/v1/videos", {
-    model: ref("request.model"), prompt: ref("request.prompt"), seconds: { $toString: ref("request.duration") },
-    size: omit({ $upper: ref("request.resolution") }), aspect_ratio: omit(ref("request.aspectRatio")),
-    reference_images: omit(map(sorted(ref("request.images")), "media", {
-      url: ref("media.value"), role: coalesce(ref("media.role"), "reference_image")
-    })),
-    reference_videos: omit(map(sorted(ref("request.videos")), "media", {
-      url: ref("media.value"), duration: omit({ $multiply: [ref("media.metadata.durationMs"), 0.001] })
-    })),
-    reference_audios: omit(map(sorted(ref("request.audios")), "media", { url: ref("media.value") }))
-  }),
-  poll: { method: "GET", path: "/v1/videos/{{taskId}}" },
-  result: { method: "GET", path: "/v1/videos/{{taskId}}/content", headers: { Accept: "video/mp4" } },
-  response: asyncResponse("video", {
-    videos: coalesce(ref("response.metadata.url"), ref("response.data.metadata.url"), ref("response.video_url"), ref("response.url")),
-    errorPaths: ["error.code", "code"], messagePaths: ["error.message", "message", "fail_reason"]
-  })
-});
-
-add({
   id: "xai-video", providerId: "xai-video", name: "xAI Video", vendor: "xAI", capability: "video",
   baseUrl: "https://api.x.ai", auth: bearer, params: videoParams, requiresPublicMediaUrls: true,
   validations: [
