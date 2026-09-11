@@ -66,6 +66,20 @@ export async function uploadImage(input: string | Blob): Promise<UploadedImage> 
     return { url, storageKey, width: meta.width, height: meta.height, bytes: blob.size, mimeType: blob.type || meta.mimeType };
 }
 
+/**
+ * Keep a newly pasted/selected image local for instant canvas feedback.
+ * The generation pipeline can upload this Blob later when it needs a server
+ * or provider readable reference image.
+ */
+export async function storeImageLocally(input: Blob): Promise<UploadedImage> {
+    const storageKey = `image:${getActiveUserScope()}:${nanoid()}`;
+    const previewUrl = URL.createObjectURL(input);
+    const meta = await readImageMeta(previewUrl);
+    await store.setItem(storageKey, input);
+    objectUrls.set(storageKey, previewUrl);
+    return { url: previewUrl, storageKey, width: meta.width, height: meta.height, bytes: input.size, mimeType: input.type || meta.mimeType };
+}
+
 function shouldImportRemoteImage(input: string) {
     return /^https?:\/\//i.test(input) && !isResourceUrl(input);
 }

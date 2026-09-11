@@ -12,7 +12,7 @@ import { createCanvasNode } from "@/lib/canvas/canvas-project-domain";
 import { isAudioFile } from "@/lib/canvas/canvas-project-generation";
 import { fitNodeSize, VIDEO_NODE_MAX_SIZE } from "@/lib/canvas/canvas-node-size";
 import { uploadMediaFile } from "@/services/file-storage";
-import { resolveImageUrl, uploadImage } from "@/services/image-storage";
+import { resolveImageUrl, storeImageLocally, uploadImage } from "@/services/image-storage";
 import { getProjectUnit } from "@/services/api/projects";
 import { ensureCanvasNodeAsset } from "@/services/project-asset-sync";
 import { useAssetStore, type ImageAsset } from "@/stores/use-asset-store";
@@ -144,8 +144,10 @@ export function useCanvasUpload({
     const createImageFileNode = useCallback(async (file: File, position: Position) => {
         const progress = startUploadStatus("上传图片", "读取图片文件", domainProjectId ? 4 : 3);
         try {
-            progress.update("上传到服务器并同步资源", 2);
-            const image = await uploadImage(file);
+            progress.update("本地读取图片", 2);
+            // Pasted/local images are inserted immediately. Uploading, when
+            // required for generation or project sync, is deferred.
+            const image = await storeImageLocally(file);
             progress.update("更新画布节点", 3);
             const size = fitNodeSize(image.width, image.height);
             const id = `image-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -160,9 +162,12 @@ export function useCanvasUpload({
             };
             setNodes((current) => [...current, node]);
             selectInsertedNode(id, "open");
-            if (domainProjectId) progress.update("写入项目资产", 4);
-            const persisted = await persistMediaNode(node);
-            progress.done(persisted ? "图片已添加到画布" : "图片已添加，项目资产待重试");
+            // Do not block paste/drop on the asset sync request. The local
+            // Blob is already available to the canvas and generation code;
+            // persistence continues in the background for refresh/project
+            // recovery.
+            progress.done("图片已添加到画布");
+            void persistMediaNode(node).catch(() => undefined);
             return id;
         } catch (error) {
             const details = error instanceof Error ? error.message : "图片上传失败";
