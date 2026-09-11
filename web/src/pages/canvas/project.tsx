@@ -1,9 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, MouseEvent as ReactMouseEvent, SetStateAction } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useParams, useSearchParams } from "react-router";
-import { loadAssetsForUse } from "@/services/user-data-sync";
-import { canvasAssetHandoffIds } from "@/lib/canvas/canvas-asset-handoff";
+import { useParams, useSearchParams } from "react-router";
 import { useConfigStore, useEffectiveConfig } from "@/stores/use-config-store";
 import { uploadMediaFile } from "@/services/file-storage";
 import { readLocalRuntimeBootstrapState } from "@/services/local-runtime-bootstrap";
@@ -25,7 +23,7 @@ import { flushCanvasStorePersistence } from "@/stores/canvas/use-canvas-store";
 import { ensureCanvasNodeAsset } from "@/services/project-asset-sync";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
-import { App, Button, Modal } from "antd";
+import { App, Modal } from "antd";
 import { getNodeSpec } from "@/constant/canvas";
 import { CanvasConfigComposer } from "@/components/canvas/canvas-config-composer";
 import { CanvasConfigNodePanel } from "@/components/canvas/canvas-config-node-panel";
@@ -70,7 +68,7 @@ import { CanvasVersionCompareModal } from "@/components/canvas/canvas-version-co
 import { CanvasLocalAgentPanel } from "@/components/canvas/canvas-local-agent-panel";
 import { useFocusMode } from "@/hooks/use-focus-mode";
 import { useCanvasAgentStore } from "@/stores/canvas/use-canvas-agent-store";
-import { applyCanvasConnectionPromptSync, getContextResourceNodes, normalizeCanvasNodeMentionTokens, type CanvasResourceReference } from "@/lib/canvas/canvas-resource-references";
+import { getContextResourceNodes, normalizeCanvasNodeMentionTokens, type CanvasResourceReference } from "@/lib/canvas/canvas-resource-references";
 import { CanvasConnectionCreateMenu, CanvasNodePanelOverlay } from "@/components/canvas/canvas-workspace-overlays";
 import { CanvasOverlayLayerContainer, CanvasOverlayLayerProvider } from "@/components/canvas/canvas-overlay-layer";
 import { CanvasLeaferGraphicsLayer } from "@/components/canvas/canvas-leafer-graphics-layer";
@@ -262,7 +260,7 @@ function InfiniteCanvasPage() {
     const [canvasAppearance, setCanvasAppearance] = useState<CanvasAppearance>(() => canvasAppearanceForTheme(colorTheme));
     const [backgroundMode, setBackgroundMode] = useState<CanvasBackgroundMode>(DEFAULT_CANVAS_BACKGROUND_MODE);
     const [showImageInfo, setShowImageInfo] = useState(false);
-    const [canvasTool, setCanvasTool] = useState<CanvasToolMode>("box-select");
+    const [canvasTool, setCanvasTool] = useState<CanvasToolMode>("move");
     const [mediaPerformanceMode, setMediaPerformanceMode] = useState<CanvasMediaPerformanceMode>(readCanvasMediaPerformanceMode);
     const [projectLoaded, setProjectLoaded] = useState(false);
     const [workspaceMode, setWorkspaceMode] = useState<CanvasWorkspaceMode>(readCanvasWorkspaceMode);
@@ -401,7 +399,7 @@ function InfiniteCanvasPage() {
         [cleanupAssetImages, getHistoryCleanupContext],
     );
 
-    const { loadError, retryLoad, addedSkills, clearCanvasFiles, createAndOpenProject, currentProject, deleteCurrentProject, renameCurrentProject, saveCanvasProject, updateProject } = useCanvasProjectLifecycle({
+    const { addedSkills, clearCanvasFiles, createAndOpenProject, currentProject, deleteCurrentProject, renameCurrentProject, saveCanvasProject, updateProject } = useCanvasProjectLifecycle({
         projectId,
         projectLoaded,
         nodes,
@@ -702,11 +700,6 @@ function InfiniteCanvasPage() {
         setDialogNodeId,
     });
     const replaceCanvasNodeMedia = useCallback((node: CanvasNodeData) => handleUploadRequest(node.id), [handleUploadRequest]);
-
-    useEffect(() => {
-        if (!projectLoaded || searchParams.get("mode") !== "handoff") return;
-        void loadAssetsForUse(canvasAssetHandoffIds(searchParams)).catch((error) => message.error(error instanceof Error ? error.message : "转入素材读取失败"));
-    }, [projectLoaded, searchParams, message]);
 
     useEffect(() => {
         if (!projectLoaded || !assetsHydrated || searchParams.get("mode") !== "handoff") return;
@@ -1097,6 +1090,7 @@ function InfiniteCanvasPage() {
         onBatchConnectionTarget: handleBatchConnectionTargetClick,
         onLinkedFolderDrop: archiveNodesToLinkedFolder,
         onDeselect: handleCanvasDeselect,
+        onSelectionBoxEnd: () => setCanvasTool((tool) => (tool === "box-select" ? "move" : tool)),
     });
 
     const keepNodeToolbar = useCallback(
@@ -1173,28 +1167,20 @@ function InfiniteCanvasPage() {
         const referenceNodeId = reference.nodeId;
         if (!referenceNodeId) return;
         // 生成节点可能通过配置节点接收参考，只移除参考来源边，保留目标到配置节点的主链。
-        const previousNodes = nodesRef.current;
-        const previousConnections = connectionsRef.current;
-        const configNodeId = previousConnections.find((connection) => {
+        const configNodeId = connectionsRef.current.find((connection) => {
             if (connection.fromNodeId !== targetNodeId) return false;
-            return previousNodes.find((node) => node.id === connection.toNodeId)?.type === CanvasNodeType.Config;
+            return nodesRef.current.find((node) => node.id === connection.toNodeId)?.type === CanvasNodeType.Config;
         })?.toNodeId;
         const removedConnectionIds = new Set(
-            previousConnections
+            connectionsRef.current
                 .filter((connection) => connection.fromNodeId === referenceNodeId && (connection.toNodeId === targetNodeId || connection.toNodeId === configNodeId))
                 .map((connection) => connection.id),
         );
         if (!removedConnectionIds.size) return;
-        const nextConnections = previousConnections.filter((connection) => !removedConnectionIds.has(connection.id));
-        const nextNodes = applyCanvasConnectionPromptSync(previousNodes, previousConnections, previousNodes, nextConnections);
-        if (nextNodes !== previousNodes) {
-            nodesRef.current = nextNodes;
-            setNodes(nextNodes);
-        }
-        connectionsRef.current = nextConnections;
-        setConnections(nextConnections);
+        connectionsRef.current = connectionsRef.current.filter((connection) => !removedConnectionIds.has(connection.id));
+        setConnections(connectionsRef.current);
         setSelectedConnectionId((current) => current && removedConnectionIds.has(current) ? null : current);
-    }, [connectionsRef, nodesRef, setConnections, setNodes, setSelectedConnectionId]);
+    }, [connectionsRef, nodesRef, setConnections, setSelectedConnectionId]);
 
     const handleProjectFolderInsert = useCallback((folderId: string) => {
         const folder = linkedProjectQuery.data?.assetFolders.find((item) => item.id === folderId);
@@ -2147,7 +2133,6 @@ function InfiniteCanvasPage() {
             onAddScript={() => createNode(CanvasNodeType.Script)}
         />
     ) : null;
-    if (!projectLoaded && loadError) return <main className="flex h-full flex-col items-center justify-center gap-4"><p role="alert">{loadError}</p><Button onClick={retryLoad}>重新加载</Button><Link to="/canvas">返回画布库</Link></main>;
     if (!projectLoaded) return <CanvasRefreshShell />;
 
     return (
