@@ -172,6 +172,8 @@ export type CanvasSkillSnapshot = {
 };
 
 export type CanvasNodeMetadata = {
+    /** 用户从图片创作面板移除自身参考后，可仅用提示词重新生成。 */
+    excludeSelfReference?: boolean;
     /** Namespaced extension ownership for nodes contributed by a unified plugin. */
     pluginId?: string;
     pluginNodeId?: string;

@@ -1,7 +1,8 @@
 import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { App } from "antd";
-import { saveAs } from "file-saver";
+import { useMediaDownload } from "@/components/use-media-download";
+import { resolveImageUrl } from "@/services/image-storage";
 
 import { NODE_DEFAULT_SIZE } from "@/constant/canvas";
 import { FOLDER_COLLAPSED_HEIGHT, FOLDER_COLLAPSED_WIDTH, FRAME_COLLAPSED_HEIGHT, FRAME_COLLAPSED_WIDTH, getFrameChildIds, isCanvasFolderNode, isFrameNode } from "@/lib/canvas/canvas-frame";
@@ -38,6 +39,7 @@ export function useCanvasNodeEditor({
     setHoveredNodeId,
 }: UseCanvasNodeEditorOptions) {
     const { message } = App.useApp();
+    const { download: downloadMedia } = useMediaDownload();
     const queryClient = useQueryClient();
     const [collapsingBatchIds, setCollapsingBatchIds] = useState<Set<string>>(new Set());
     const [openingBatchIds, setOpeningBatchIds] = useState<Set<string>>(new Set());
@@ -183,8 +185,11 @@ export function useCanvasNodeEditor({
 
     const downloadNodeImage = useCallback((node: CanvasNodeData) => {
         if ((node.type !== CanvasNodeType.Image && node.type !== CanvasNodeType.Video && node.type !== CanvasNodeType.Audio) || !node.metadata?.content) return;
-        saveAs(node.metadata.content, buildCanvasMediaDownloadFileName(canvasTitle, node));
-    }, [canvasTitle]);
+        void (async () => {
+            const url = node.type === CanvasNodeType.Image ? await resolveImageUrl(node.metadata?.storageKey, node.metadata?.content) : node.metadata!.content!;
+            await downloadMedia(url, buildCanvasMediaDownloadFileName(canvasTitle, node));
+        })().catch((error) => message.error(error instanceof Error ? error.message : "下载失败，请稍后重试"));
+    }, [canvasTitle, downloadMedia, message]);
 
     const saveNodeAsset = useCallback(async (node: CanvasNodeData) => {
         if (node.type !== CanvasNodeType.Text && node.type !== CanvasNodeType.Image && node.type !== CanvasNodeType.Video && node.type !== CanvasNodeType.Audio) return message.error("当前节点类型不能保存为素材");

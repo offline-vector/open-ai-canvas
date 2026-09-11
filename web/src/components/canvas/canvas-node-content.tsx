@@ -15,6 +15,7 @@ import { formatBytes } from "@/lib/image-utils";
 import { resourceIdFromStorageKey } from "@/services/api/resources";
 import type { GenerationTask } from "@/services/api/task-center";
 import { cacheResourceObjectUrl, getCachedResourceObjectUrl } from "@/services/resource-blob-cache";
+import { resolveImageUrl } from "@/services/image-storage";
 import { hydrateCanvasVideoPreview } from "@/services/canvas-video-preview";
 import { CanvasNodeType, type CanvasNodeData } from "@/types/canvas";
 import { getNodeDefinition } from "@/lib/canvas/node-registry";
@@ -606,6 +607,7 @@ function ImageContent({ node, theme, isBatchRoot, batchCount, batchExpanded, bat
 }
 
 function useNodeResourceUrl(node: CanvasNodeData, eager: boolean) {
+    const { updateMediaNode } = useCanvasNodeActions();
     const storageKey = node.metadata?.storageKey || "";
     const rawContent = node.metadata?.content || "";
     const content = node.type === CanvasNodeType.Video && node.metadata?.importSource?.provider === "libtv"
@@ -619,6 +621,7 @@ function useNodeResourceUrl(node: CanvasNodeData, eager: boolean) {
         : node.metadata?.previewContent
             || (node.type === CanvasNodeType.Image && node.metadata?.importSource?.provider === "libtv" ? buildLibTVImagePreviewUrl(content) : content);
     const isRemoteResource = Boolean(resourceIdFromStorageKey(storageKey));
+    const isLocalImage = node.type === CanvasNodeType.Image && /^(image|generation-image):/.test(storageKey);
     // Inline data URLs are already local, but decoding thousands of them is
     // still expensive. Images must wait for the same viewport gate as remote
     // resources; otherwise DOM virtualization does not reduce image work.
@@ -628,6 +631,26 @@ function useNodeResourceUrl(node: CanvasNodeData, eager: boolean) {
 
     useEffect(() => {
         let cancelled = false;
+        if (isLocalImage) {
+            setUrl("");
+            setLoading(eager);
+            if (!eager) return;
+            // Blob URL 在刷新后失效，必须按 storageKey 从 IndexedDB 重新创建。
+            void resolveImageUrl(storageKey, fallback.startsWith("blob:") ? "" : fallback)
+                .then((resolved) => {
+                    if (cancelled) return;
+                    setUrl(resolved);
+                    // 编辑、裁剪和预览也读取节点内容，统一更新为本次页面有效的地址。
+                    if (resolved && resolved !== rawContent) updateMediaNode?.(node.id, (current) =>
+                        current.metadata?.storageKey === storageKey
+                            ? { ...current, metadata: { ...current.metadata, content: resolved } }
+                            : current,
+                    );
+                })
+                .catch(() => { if (!cancelled) setUrl(""); })
+                .finally(() => { if (!cancelled) setLoading(false); });
+            return () => { cancelled = true; };
+        }
         if (!isRemoteResource) {
             setUrl(isLazyVisual && !eager ? "" : fallback);
             setLoading(false);
@@ -645,7 +668,7 @@ function useNodeResourceUrl(node: CanvasNodeData, eager: boolean) {
             if (!cancelled) setLoading(false);
         });
         return () => { cancelled = true; };
-    }, [eager, fallback, isLazyVisual, isRemoteResource, storageKey]);
+    }, [eager, fallback, isLazyVisual, isLocalImage, isRemoteResource, node.id, rawContent, storageKey, updateMediaNode]);
 
     return { url, loading };
 }

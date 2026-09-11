@@ -142,11 +142,10 @@ export function useCanvasUpload({
     }, [canvasId, domainProjectId, queryClient]);
 
     const createImageFileNode = useCallback(async (file: File, position: Position) => {
-        const progress = startUploadStatus("上传图片", "读取图片文件", domainProjectId ? 4 : 3);
+        const progress = startUploadStatus("添加图片", "读取图片文件", 3);
         try {
             progress.update("本地读取图片", 2);
-            // Pasted/local images are inserted immediately. Uploading, when
-            // required for generation or project sync, is deferred.
+            // 图片保存到当前浏览器，自动同步只提交素材和画布结构。
             const image = await storeImageLocally(file);
             progress.update("更新画布节点", 3);
             const size = fitNodeSize(image.width, image.height);
@@ -162,11 +161,7 @@ export function useCanvasUpload({
             };
             setNodes((current) => [...current, node]);
             selectInsertedNode(id, "open");
-            // Do not block paste/drop on the asset sync request. The local
-            // Blob is already available to the canvas and generation code;
-            // persistence continues in the background for refresh/project
-            // recovery.
-            progress.done("图片已添加到画布");
+            progress.done("图片已保存到当前浏览器");
             void persistMediaNode(node).catch(() => undefined);
             return id;
         } catch (error) {
@@ -487,7 +482,7 @@ export function useCanvasUpload({
         }
         const progress = startUploadStatus("替换图片", "读取图片文件");
         try {
-            progress.update("上传到服务器并同步资源", 2);
+            progress.update("保存图片", 2);
             const image = await uploadImage(file);
             progress.update("更新画布节点", 3);
             const node = {
@@ -497,6 +492,7 @@ export function useCanvasUpload({
                 metadata: {
                     ...currentNode.metadata,
                     ...imageMetadata(image),
+                    excludeSelfReference: undefined,
                     assetId: undefined,
                     taskId: undefined,
                     errorDetails: undefined,

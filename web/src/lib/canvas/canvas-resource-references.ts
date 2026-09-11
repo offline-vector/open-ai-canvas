@@ -118,7 +118,7 @@ export function buildCanvasNodeMentionReferenceMap(nodes: CanvasNodeData[], conn
         const configTargetId = configTargetBySourceId.get(node.id);
         const configInputs = configTargetId ? (resourceInputsByTargetId.get(configTargetId) || []).filter((input) => input.id !== node.id) : [];
         const ownInputs = resourceInputsByTargetId.get(node.id) || [];
-        const inputs = configInputs.length ? configInputs : ownInputs.length ? ownInputs : isResourceNode(node) ? [node] : [];
+        const inputs = configInputs.length ? configInputs : ownInputs.length ? ownInputs : isResourceNode(node) && !node.metadata?.excludeSelfReference ? [node] : [];
         referencesByNodeId.set(node.id, labelResourceNodes(inputs, true));
     }
     return referencesByNodeId;
@@ -134,7 +134,7 @@ export function getMentionResourceNodes(nodeId: string, nodes: CanvasNodeData[],
     const ownInputs = getContextResourceNodes(nodeId, nodes, connections);
     if (ownInputs.length) return ownInputs;
     const node = nodes.find((item) => item.id === nodeId);
-    return node && isResourceNode(node) ? [node] : [];
+    return node && isResourceNode(node) && !node.metadata?.excludeSelfReference ? [node] : [];
 }
 
 export function getGenerationResourceNodes(nodeId: string, nodes: CanvasNodeData[], connections: CanvasConnection[]) {
@@ -142,7 +142,8 @@ export function getGenerationResourceNodes(nodeId: string, nodes: CanvasNodeData
     if (configInputs.length) return configInputs;
     const ownInputs = getContextResourceNodes(nodeId, nodes, connections);
     if (ownInputs.length) return ownInputs;
-    return [];
+    const self = nodes.find((node) => node.id === nodeId);
+    return self?.type === CanvasNodeType.Image && isResourceNode(self) && !self.metadata?.excludeSelfReference ? [self] : [];
 }
 
 /** 收集节点自身及其上游链路中的视频节点，用于时间线片段导入定位真正的视频源。 */

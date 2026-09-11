@@ -1,5 +1,6 @@
 import { getMediaBlob } from "@/services/file-storage";
 import { getImageBlob } from "@/services/image-storage";
+import { isBrowserStoredImageKey } from "@/lib/generated-media-policy";
 import { deleteRemoteAsset, deleteRemoteCanvasProject, getRemoteUserDataSnapshot, upsertRemoteAsset, upsertRemoteCanvasProject } from "@/services/api/user-data";
 import { resourceFileUrl, resourceIdFromStorageKey, resourceStorageKey, uploadResourceFile } from "@/services/api/resources";
 import { assetForRemoteSync } from "@/lib/asset-remote-sync";
@@ -400,7 +401,7 @@ function collectLocalMediaKeys(value: unknown, set = new Set<string>()): string[
     }
     const record = value as Record<string, unknown>;
     const storageKey = typeof record.storageKey === "string" ? record.storageKey : "";
-    if (isLocalStorageKey(storageKey) && !resourceIdFromStorageKey(storageKey)) {
+    if (isLocalStorageKey(storageKey) && !resourceIdFromStorageKey(storageKey) && !isBrowserStoredImageKey(storageKey)) {
         set.add(storageKey);
     } else {
         const inline = inlineMediaDataUrl(record);
@@ -426,6 +427,9 @@ async function ensureRemoteResourceReferences<T>(value: T, uploaded = new Map<st
     }
 
     const storageKey = typeof next.storageKey === "string" ? next.storageKey : "";
+    // 浏览器图片只同步结构化引用，不在自动保存时偷偷上传文件。
+    // 同一浏览器刷新后仍由 IndexedDB 中的 storageKey 恢复图片。
+    if (isBrowserStoredImageKey(storageKey)) return next as T;
     const remoteResourceId = resourceIdFromStorageKey(storageKey);
     if (remoteResourceId) return applyResourceReference(next, storageKey) as T;
 

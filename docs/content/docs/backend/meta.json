@@ -4,6 +4,7 @@
   "defaultOpen": true,
   "pages": [
     "local-development",
+    "browser-image-storage",
     "code-map",
     "backend-database",
     "system-update",

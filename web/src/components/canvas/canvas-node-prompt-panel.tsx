@@ -248,6 +248,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                 </div>
             )}
             {!simpleMode ? <CanvasPresetPicker mode={mode} skillReferences={skillReferences} open={expanded ? expandedPresetOpen : presetOpen} onOpenChange={expanded ? setExpandedPresetOpen : setPresetOpen} onSelect={applyPreset} dense /> : null}
+            {hasImageContent && node.metadata?.excludeSelfReference && !activeReferenceCount ? <button type="button" className="canvas-node-composer-icon-button" onClick={() => onConfigChange(node.id, { excludeSelfReference: false })}>使用当前图片作参考</button> : null}
             {canOptimizePrompt ? (
                 <Tooltip title="用 AI 优化提示词">
                     <button

@@ -53,7 +53,7 @@ export async function executeImageGeneration({
     const isImageNode = sourceNode?.type === CanvasNodeType.Image;
     const reuseSourceNode = canGenerateImageInPlace(sourceNode);
     const directCopiedBatch = count > 1 && isImageNode && Boolean(sourceNode?.metadata?.content) && reuseSourceNode;
-    // 已有图片生成新结果并保留旧版本；参考图只来自入边，避免把旧结果误当成自身输入。
+    // 保留旧版本；参考图由上下文统一选择（入边优先，否则使用未被移除的当前图片）。
     const referenceImages = generationContext.referenceImages;
     const generationType = referenceImages.length ? ("edit" as const) : ("generation" as const);
     const generationMetadata = buildImageGenerationMetadata(generationType, generationConfig, count, referenceImages);

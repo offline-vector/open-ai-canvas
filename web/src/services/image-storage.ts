@@ -1,7 +1,7 @@
 import localforage from "localforage";
 
 import { nanoid } from "nanoid";
-import { shouldKeepGeneratedMediaRemote } from "@/lib/generated-media-policy";
+import { shouldKeepGeneratedMediaRemote, usesBrowserImageStorage } from "@/lib/generated-media-policy";
 import { readImageMeta } from "@/lib/image-utils";
 import { getActiveUserScope } from "@/lib/user-scope";
 import { importResourceFromUrl, isResourceUrl, resourceFileUrl, resourceIdFromStorageKey, resourceStorageKey, uploadResourceFile } from "@/services/api/resources";
@@ -23,6 +23,11 @@ export async function uploadImage(input: string | Blob): Promise<UploadedImage> 
     if (typeof input === "string" && shouldKeepGeneratedMediaRemote(input)) {
         const meta = await readImageMeta(input);
         return { url: input, storageKey: "", width: meta.width, height: meta.height, bytes: 0, mimeType: meta.mimeType };
+    }
+    if (usesBrowserImageStorage()) {
+        const response = typeof input === "string" ? await fetch(input, { credentials: isResourceUrl(input) ? "include" : "same-origin" }) : null;
+        if (response && !response.ok) throw new Error(`读取图片失败（${response.status}）`);
+        return storeImageLocally(response ? await response.blob() : input as Blob);
     }
     // 同一个逻辑上传在直传失败后会退回 IndexedDB，并由云端数据同步再次提交。
     // 提前生成本地 key，确保两条路径向后端发送相同的幂等标识。
@@ -66,18 +71,19 @@ export async function uploadImage(input: string | Blob): Promise<UploadedImage> 
     return { url, storageKey, width: meta.width, height: meta.height, bytes: blob.size, mimeType: blob.type || meta.mimeType };
 }
 
-/**
- * Keep a newly pasted/selected image local for instant canvas feedback.
- * The generation pipeline can upload this Blob later when it needs a server
- * or provider readable reference image.
- */
+/** 图片文件保存在 IndexedDB；画布/素材同步只保存引用，生成时才提交文件。 */
 export async function storeImageLocally(input: Blob): Promise<UploadedImage> {
     const storageKey = `image:${getActiveUserScope()}:${nanoid()}`;
     const previewUrl = URL.createObjectURL(input);
-    const meta = await readImageMeta(previewUrl);
-    await store.setItem(storageKey, input);
-    objectUrls.set(storageKey, previewUrl);
-    return { url: previewUrl, storageKey, width: meta.width, height: meta.height, bytes: input.size, mimeType: input.type || meta.mimeType };
+    try {
+        const meta = await readImageMeta(previewUrl);
+        await store.setItem(storageKey, input);
+        objectUrls.set(storageKey, previewUrl);
+        return { url: previewUrl, storageKey, width: meta.width, height: meta.height, bytes: input.size, mimeType: input.type || meta.mimeType };
+    } catch (error) {
+        URL.revokeObjectURL(previewUrl);
+        throw error;
+    }
 }
 
 function shouldImportRemoteImage(input: string) {

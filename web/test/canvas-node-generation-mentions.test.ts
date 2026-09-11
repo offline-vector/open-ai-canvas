@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { buildNodeGenerationContext } from "../src/components/canvas/canvas-node-generation";
+import { buildNodeGenerationContext, hydrateNodeGenerationContext } from "../src/components/canvas/canvas-node-generation";
 import { CanvasNodeType, type CanvasConnection, type CanvasNodeData } from "../src/types/canvas";
 
 function node(id: string, type: CanvasNodeType, content: string): CanvasNodeData {
@@ -32,6 +32,23 @@ function connection(fromNodeId: string): CanvasConnection {
 }
 
 describe("canvas node generation position mentions", () => {
+    test("图片任务直接保留服务端资源引用，不读取游客缓存", async () => {
+        const source = node("server-image", CanvasNodeType.Image, "/api/resources/existing-image/file");
+        source.metadata.storageKey = "resource:existing-image";
+        const context = buildNodeGenerationContext(source.id, [source], [], "将圆形改成紫色", []);
+        const hydrated = await hydrateNodeGenerationContext(context, "canvas-test", undefined, "image");
+        expect(hydrated.referenceImages).toEqual(context.referenceImages);
+        expect(hydrated.imageCount).toBe(1);
+    });
+
+    test("图片任务直接保留上游 HTTPS 参考图，不在浏览器重新下载", async () => {
+        const source = node("remote-image", CanvasNodeType.Image, "https://example.com/reference.png");
+        const context = buildNodeGenerationContext(source.id, [source], [], "修改背景", []);
+        const hydrated = await hydrateNodeGenerationContext(context, "canvas-test", undefined, "image");
+        expect(hydrated.referenceImages).toEqual(context.referenceImages);
+        expect(hydrated.imageCount).toBe(1);
+    });
+
     test("已有图片节点显式引用自身时作为图生图参考图提交", () => {
         const source = node("image-self", CanvasNodeType.Image, "data:image/png;base64,a");
         source.metadata.composerContent = "将 @图片1 图片变清晰";
@@ -43,12 +60,36 @@ describe("canvas node generation position mentions", () => {
         expect(context.prompt).toBe("将 @图片1 图片变清晰");
     });
 
-    test("已有图片节点未显式引用自身时不自动退化为图生图", () => {
+    test("图片面板默认展示的自身参考无需 @ 也参与图改图", () => {
         const source = node("image-self", CanvasNodeType.Image, "data:image/png;base64,a");
+        const context = buildNodeGenerationContext(source.id, [source], [], "将圆形改成绿色", []);
+
+        expect(context.referenceImages.map((image) => image.id)).toEqual([source.id]);
+        expect(context.imageCount).toBe(1);
+    });
+
+    test("移除自身参考后恢复无图文生图，重新启用后恢复图改图", () => {
+        const source = node("image-self", CanvasNodeType.Image, "data:image/png;base64,a");
+        source.metadata.excludeSelfReference = true;
         const context = buildNodeGenerationContext(source.id, [source], [], "生成一个新的构图", []);
 
         expect(context.referenceImages).toEqual([]);
         expect(context.imageCount).toBe(0);
+        source.metadata.excludeSelfReference = false;
+        expect(buildNodeGenerationContext(source.id, [source], [], "将圆形改成绿色", []).imageCount).toBe(1);
+    });
+
+    test("生成结果有入边时只引用源图，不额外把旧结果当作输入", () => {
+        const original = node("original", CanvasNodeType.Image, "data:image/png;base64,a");
+        const result = node("target", CanvasNodeType.Image, "data:image/png;base64,b");
+        const context = buildNodeGenerationContext(result.id, [original, result], [connection(original.id)], "修改颜色", []);
+        expect(context.referenceImages.map((image) => image.id)).toEqual([original.id]);
+    });
+
+    test("空白图片节点仍按文生图提交", () => {
+        const source = node("image-empty", CanvasNodeType.Image, "");
+        const context = buildNodeGenerationContext(source.id, [source], [], "生成一个新的构图", []);
+        expect(context.referenceImages).toEqual([]);
         expect(context.prompt).toBe("生成一个新的构图");
     });
 

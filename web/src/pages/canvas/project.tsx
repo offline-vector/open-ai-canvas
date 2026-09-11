@@ -1166,6 +1166,18 @@ function InfiniteCanvasPage() {
     const handleRemoveNodeReference = useCallback((targetNodeId: string, reference: CanvasResourceReference) => {
         const referenceNodeId = reference.nodeId;
         if (!referenceNodeId) return;
+        if (referenceNodeId === targetNodeId) {
+            setNodes((current) => current.map((node) => node.id === targetNodeId ? {
+                ...node,
+                metadata: {
+                    ...node.metadata,
+                    excludeSelfReference: true,
+                    composerContent: (node.metadata?.composerContent ?? node.metadata?.prompt ?? "")
+                        .split(`@[node:${targetNodeId}]`).join("").replace(/@图片1(?!\d)/gu, "").trim(),
+                },
+            } : node));
+            return;
+        }
         // 生成节点可能通过配置节点接收参考，只移除参考来源边，保留目标到配置节点的主链。
         const configNodeId = connectionsRef.current.find((connection) => {
             if (connection.fromNodeId !== targetNodeId) return false;
@@ -1180,7 +1192,7 @@ function InfiniteCanvasPage() {
         connectionsRef.current = connectionsRef.current.filter((connection) => !removedConnectionIds.has(connection.id));
         setConnections(connectionsRef.current);
         setSelectedConnectionId((current) => current && removedConnectionIds.has(current) ? null : current);
-    }, [connectionsRef, nodesRef, setConnections, setSelectedConnectionId]);
+    }, [connectionsRef, nodesRef, setConnections, setNodes, setSelectedConnectionId]);
 
     const handleProjectFolderInsert = useCallback((folderId: string) => {
         const folder = linkedProjectQuery.data?.assetFolders.find((item) => item.id === folderId);
